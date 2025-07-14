@@ -87,12 +87,6 @@ CREATE TABLE IF NOT EXISTS benefits (
     detail TEXT NOT NULL
 ) ENGINE = INNODB;
 
-CREATE TABLE IF NOT EXISTS benefits (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    description VARCHAR(80) NOT NULL,
-    detail TEXT NOT NULL
-) ENGINE = INNODB;
-
 CREATE TABLE IF NOT EXISTS audiences (
     id INT PRIMARY KEY AUTO_INCREMENT,
     description VARCHAR(60) NOT NULL
@@ -137,16 +131,6 @@ CREATE TABLE IF NOT EXISTS companies (
     CONSTRAINT FK_audience_idcompa FOREIGN KEY (audience_id) REFERENCES audiences(id),
     cellphone VARCHAR(15) UNIQUE NOT NULL,
     email VARCHAR(80) UNIQUE NOT NULL
-) ENGINE = INNODB;
-
-CREATE TABLE IF NOT EXISTS products (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(60) UNIQUE NOT NULL,
-    detail TEXT NOT NULL,
-    price DOUBLE NOT NULL,
-    category_id INT(11) NOT NULL,
-    CONSTRAINT FK_category_idprod FOREIGN KEY (category_id) REFERENCES categories(id),
-    image VARCHAR(80) NOT NULL 
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS companyproducts (
