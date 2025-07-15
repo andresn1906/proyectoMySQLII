@@ -276,47 +276,131 @@ GROUP BY cu.id, cu.name, pro.id, pro.name;
 
 ### 2. Subconsultas:
 
- 1.2 Como gerente, quiero ver los productos cuyo precio esté por encima del promedio de su categoría.
+01.2 Como gerente, quiero ver los productos cuyo precio esté por encima del promedio de su categoría.
 ```sql
-
-```
- 2.2 Como administrador, deseo listar las empresas que tienen más productos que la media de empresas.
-```sql
-
-```
- 3.2 Como cliente, quiero ver mis productos favoritos que han sido calificados por otros clientes.
-```sql
-
-```
- 4.2 Como supervisor, deseo obtener los productos con el mayor número de veces añadidos como favoritos.
-```sql
-
-```
- 5.2 Como técnico, quiero listar los clientes cuyo correo no aparece en la tabla rates ni en quality_products.
-```sql
-
-```
- 6.2 Como gestor de calidad, quiero obtener los productos con una calificación inferior al mínimo de su categoría.
-```sql
-
-```
- 7.2 Como desarrollador, deseo listar las ciudades que no tienen clientes registrados.
-```sql
-SELECT c.name
-FROM citiesormunicipalities c
-WHERE NOT EXISTS (
-    SELECT cu.city_id
-    FROM customers cu
-    WHERE cu.city_id = c.code
+SELECT pro.id AS IdProducto, pro.name AS Producto, pro.price AS Precio,
+c.description AS Categoría
+FROM products pro
+JOIN categories c ON pro.category_id = c.id
+WHERE pro.price > (
+    SELECT AVG(pro2.price)
+    FROM products pro2
+    WHERE pro2.category_id = pro.category_id
 );
 ```
- 8.2 Como administrador, quiero ver los productos que no han sido evaluados en ninguna encuesta.
+02.2 Como administrador, deseo listar las empresas que tienen más productos que la media de empresas.
 ```sql
-
+SELECT cp.company_id AS IdEmpresa, 
+em.name AS Empresa, 
+COUNT(cp.product_id) AS TotalProductos
+FROM companyproducts cp
+JOIN companies em ON cp.company_id = em.id
+GROUP BY cp.company_id, em.name
+HAVING COUNT(cp.product_id) > (
+    SELECT AVG(Productos) 
+    FROM (
+        SELECT COUNT(cp.product_id) AS Productos
+        FROM companyproducts cp
+        GROUP BY cp.company_id
+    ) AS sub
+);
 ```
- 9.2 Como auditor, quiero listar los beneficios que no están asignados a ninguna audiencia.
+03.2 Como cliente, quiero ver mis productos favoritos que han sido calificados por otros clientes.
 ```sql
-
+SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
+cat.description AS Categoría,
+q.rating AS Calificación,
+q.customer_id AS CalificaciónCliente
+FROM (
+    SELECT df.product_id
+    FROM favorites f
+    JOIN details_favorites df ON f.id = df.favorite_id
+    WHERE f.customer_id = 1
+) AS favs
+JOIN products pro ON favs.product_id = pro.id
+JOIN categories cat ON pro.category_id = cat.id
+JOIN quality_products q ON pro.id = q.product_id
+WHERE q.customer_id <> 1;
+-- (Empty Set) El producto favorito del cliente con ID 1 no ha sido calificado por un cliente diferente a él mismo.
+```
+04.2 Como supervisor, deseo obtener los productos con el mayor número de veces añadidos como favoritos.
+```sql
+SELECT 
+pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
+cat.description AS Categoría,
+favs.VecesFavorito
+FROM (
+    SELECT df.product_id,
+    COUNT(df.product_id) AS VecesFavorito
+    FROM details_favorites df
+    GROUP BY df.product_id
+) AS favs
+JOIN products pro ON favs.product_id = pro.id
+JOIN categories cat ON pro.category_id = cat.id
+ORDER BY favs.VecesFavorito DESC;
+```
+05.2 Como técnico, quiero listar los clientes cuyo correo no aparece en la tabla *rates* ni en *quality_products*.
+```sql
+SELECT 
+c.id AS IdCliente, c.name AS Cliente, c.email AS Correo, c.cellphone AS Celular
+FROM customers c
+WHERE c.email NOT IN (
+    SELECT DISTINCT r.email
+    FROM rates rt
+    JOIN customers r ON rt.customer_id = r.id
+)
+AND c.email NOT IN (
+    SELECT DISTINCT q.email
+    FROM quality_products qp
+    JOIN customers q ON qp.customer_id = q.id
+);
+-- (Empty Set) Los correos de cada cliente se almacena en almenos una de las tablas "rates" o "quality_products".
+```
+06.2 Como gestor de calidad, quiero obtener los productos con una calificación inferior al mínimo de su categoría.
+```sql
+SELECT pro.id AS IdProducto, pro.name AS Producto,
+cat.description AS Categoría,
+qp.rating AS Calificación
+FROM quality_products qp
+JOIN products pro ON qp.product_id = pro.id
+JOIN categories cat ON pro.category_id = cat.id
+WHERE qp.rating < (
+    SELECT MIN(qp2.rating)
+    FROM quality_products qp2
+    JOIN products p2 ON qp2.product_id = p2.id
+    WHERE p2.category_id = pro.category_id
+);
+-- (Empty Set) Ninguno producto tiene una calificación menor al mínimo de su categoría.
+```
+07.2 Como desarrollador, deseo listar las ciudades que no tienen clientes registrados.
+```sql
+SELECT com.code AS CodigoCiudad, com.name AS Ciudad
+FROM citiesormunicipalities com
+WHERE com.code NOT IN (
+    SELECT DISTINCT c.city_id
+    FROM customers c
+);
+```
+08.2 Como administrador, quiero ver los productos que no han sido evaluados en ninguna encuesta.
+```sql
+SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
+cat.description AS Categoría
+FROM products pro
+JOIN categories cat ON pro.category_id = cat.id
+WHERE pro.id NOT IN (
+    SELECT DISTINCT qp.product_id
+    FROM quality_products qp
+);
+```
+09.2 Como auditor, quiero listar los beneficios que no están asignados a ninguna audiencia.
+```sql
+SELECT b.id AS IdBeneficio, b.description AS Beneficio, b.detail AS Detalle
+FROM benefits b
+WHERE b.id NOT IN (
+    SELECT ab.benefit_id
+    FROM audiencebenefits ab
+);
+-- (Empty Set) Todos los beneficios están asignados a cada una de las audiencia.
 ```
 10.2 Como cliente, deseo obtener mis productos favoritos que no están disponibles actualmente en ninguna empresa.
 ```sql
@@ -324,43 +408,138 @@ WHERE NOT EXISTS (
 ```
 11.2 Como director, deseo consultar los productos vendidos en empresas cuya ciudad tenga menos de tres empresas registradas.
 ```sql
-
+SELECT pro.id AS IdProducto, pro.name AS Producto,
+cat.description AS Categoría,
+em.name AS Empresa,
+ci.name AS Ciudad
+FROM companyproducts cp
+JOIN products pro ON cp.product_id = pro.id
+JOIN categories cat ON pro.category_id = cat.id
+JOIN companies em ON cp.company_id = em.id
+JOIN citiesormunicipalities ci ON em.city_id = ci.code
+WHERE em.city_id IN (
+    SELECT em2.city_id
+    FROM companies em2
+    GROUP BY em2.city_id
+    HAVING COUNT(em2.id) < 3
+);
 ```
 12.2 Como analista, quiero ver los productos con calidad superior al promedio de todos los productos.
 ```sql
-
+SELECT pro.id AS IdProducto, pro.name AS Producto, pro.price AS Precio,
+cat.description AS Categoría,
+AVG(qp.rating) AS PromedioCalidad
+FROM products pro
+JOIN quality_products qp ON pro.id = qp.product_id
+JOIN categories cat ON pro.category_id = cat.id
+GROUP BY pro.id, pro.name, pro.price, cat.description
+HAVING AVG(qp.rating) > (
+  SELECT AVG(qp.rating)
+  FROM quality_products qp
+);
 ```
 13.2 Como gestor, quiero ver empresas que sólo venden productos de una única categoría.
 ```sql
-
+SELECT em.id AS IdEmpresa, em.name AS Empresa,
+cat.description AS Categoria
+FROM companies em
+JOIN companyproducts cp ON em.id = cp.company_id
+JOIN products pro ON cp.product_id = pro.id
+JOIN categories cat ON pro.category_id = cat.id
+WHERE em.id IN (
+    SELECT company_id
+    FROM companyproducts cp
+    JOIN products p ON cp.product_id = p.id
+    GROUP BY company_id
+    HAVING COUNT(DISTINCT p.category_id) = 1
+)
+GROUP BY em.id, em.name, cat.description;
 ```
 14.2 Como gerente comercial, quiero consultar los productos con el mayor precio entre todas las empresas.
 ```sql
-
+SELECT pro.id AS IdProducto, pro.name AS Producto,
+cp.price AS Precio,
+em.name AS Empresa
+FROM companyproducts cp
+JOIN products pro ON cp.product_id = pro.id
+JOIN companies em ON cp.company_id = em.id
+WHERE cp.price = (
+  SELECT MAX(price)
+  FROM companyproducts
+);
 ```
 15.2 Como cliente, quiero saber si algún producto de mis favoritos ha sido calificado por otro cliente con más de 4 estrellas.
 ```sql
-
+SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
+qp.rating AS Calificación, qp.customer_id AS ClienteCalificador
+FROM (
+    SELECT df.product_id
+    FROM favorites f
+    JOIN details_favorites df ON f.id = df.favorite_id
+    WHERE f.customer_id = 1
+) AS favs
+JOIN quality_products qp ON favs.product_id = qp.product_id
+JOIN products pro ON pro.id = favs.product_id
+WHERE qp.customer_id <> 1
+    AND qp.rating > 4;
+-- (Empty Set) Mis productos favoritos(id = 1) no han sido calificados por otro cliente con más de 4 estrellas. 
 ```
 16.2 Como operador, quiero saber qué productos no tienen imagen asignada pero sí han sido calificados.
 ```sql
-
+SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio, pro.image AS Imagen
+FROM products pro
+WHERE (pro.image IS NULL OR pro.image = '')
+    AND pro.id IN (
+        SELECT DISTINCT qp.product_id
+        FROM quality_products qp
+);
+-- (Empty Set) Todo producto calificado presenta imagen.
 ```
 17.2 Como auditor, quiero ver los planes de membresía sin periodo vigente.
 ```sql
-
+SELECT ms.id AS IdMembresia, ms.name AS Membresía, ms.description AS Descripcion
+FROM memberships ms
+WHERE ms.id NOT IN (
+    SELECT DISTINCT mp.membership_id
+    FROM membershipperiods mp
+);
+-- (Empty Set) Todas las membresías tienen un periodo vigente establecido.
 ```
 18.2 Como especialista, quiero identificar los beneficios compartidos por más de una audiencia.
 ```sql
-
+SELECT b.id AS Beneficio, b.description AS Descripcion
+FROM benefits b
+WHERE b.id IN (
+    SELECT ab.benefit_id
+    FROM audiencebenefits ab
+    GROUP BY ab.benefit_id
+    HAVING COUNT(DISTINCT ab.audience_id) > 1
+);
+-- (Empty Set) Cada beneficio está asignado a un solo tipo de audiencia.
 ```
 19.2 Como técnico, quiero encontrar empresas cuyos productos no tengan unidad de medida definida.
 ```sql
-
+SELECT em.id AS IdEmpresa, em.name AS Empresa
+FROM companies em
+WHERE em.id IN (
+    SELECT cp.company_id
+    FROM companyproducts cp
+    JOIN products pro ON cp.product_id = pro.id
+    WHERE pro.unitofmeasure_id IS NULL
+);
+-- (Empy Set) Todos los productos tienen una unidad de medida.
 ```
 20.2 Como gestor de campañas, deseo obtener los clientes con membresía activa y sin productos favoritos.
 ```sql
-
+SELECT cu.id AS IdCliente, cu.name AS NombreCliente
+FROM customers cu
+WHERE cu.membership_active = TRUE
+AND cu.id NOT IN (
+    SELECT f.customer_id
+    FROM favorites f
+    JOIN details_favorites df ON f.id = df.favorite_id
+);
+-- (Empty Set) Todos los clientes tienen un producto favorito y se encuentran con membresía activa.
 ```
 
 ### 3. Funciones Agregadas:
