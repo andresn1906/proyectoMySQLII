@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS membershipperiods (
     period_id INT(11) NOT NULL,
     CONSTRAINT FK_period_idmembership FOREIGN KEY (period_id) REFERENCES periods(id),
     PRIMARY KEY (membership_id, period_id)
+    
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS benefits (
@@ -139,7 +140,9 @@ CREATE TABLE IF NOT EXISTS products (
     price DOUBLE NOT NULL,
     category_id INT(11) NOT NULL,
     CONSTRAINT FK_category_idprod FOREIGN KEY (category_id) REFERENCES categories(id),
-    image VARCHAR(80) NOT NULL 
+    image VARCHAR(80) NOT NULL,
+    unitofmeasure_id INT NOT NULL,
+    CONSTRAINT FK_unitmeasure_idprod FOREIGN KEY (unitofmeasure_id) REFERENCES unitofmeasure(id)
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS companyproducts (
