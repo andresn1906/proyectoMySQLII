@@ -1559,15 +1559,15 @@ INSERT INTO companies (id, type_id, name, category_id, city_id, audience_id, cel
 ('COMP2', 3, 'Tech Solutions', 3, 'US36001', 2, '3207654321', 'tech@soluciones.com'),
 ('COMP3', 1, 'Restaurante Gourmet', 1, '11001', 3, '3158889999', 'gourmet@restaurante.com');
 
-INSERT INTO products (name, detail, price, category_id, image) VALUES
-('Arroz Premium', 'Arroz de grano largo premium', 15000, 2, 'arroz.jpg'),
-('Iphone 17 Pro', 'Último modelo con 1TB', 5500000, 3, 'iphone17.jpg'),
-('Bandeja Paisa', 'Plato típico antioqueño', 35000, 1, 'paisa.jpg'),
-('Leche Entera', 'Leche fresca de vaca', 5000, 2, 'leche.jpg'),
-('Frijoles', 'Frijoles rojos en libra', 6000, 2, 'frijoles.jpg'),
-('Pan Integral', 'Pan de trigo 100% integral', 4500, 2, 'pan.jpg'),
-('Aceite Vegetal', 'Aceite vegetal 1 litro', 8000, 2, 'aceite.jpg'),
-('Sal Marina', 'Sal natural sin refinar', 3000, 2, 'sal.jpg');
+INSERT INTO products (name, detail, price, category_id, image, unitofmeasure_id) VALUES
+('Arroz Premium', 'Arroz de grano largo premium', 15000, 2, 'arroz.jpg', 2),
+('Iphone 17 Pro', 'Último modelo con 1TB', 5500000, 3, 'iphone17.jpg', 1),
+('Bandeja Paisa', 'Plato típico antioqueño', 35000, 1, 'paisa.jpg', 1),
+('Leche Entera', 'Leche fresca de vaca', 5000, 2, 'leche.jpg', 3),
+('Frijoles', 'Frijoles rojos en libra', 6000, 2, 'frijoles.jpg', 2),
+('Pan Integral', 'Pan de trigo 100% integral', 4500, 2, 'pan.jpg', 1),
+('Aceite Vegetal', 'Aceite vegetal 1 litro', 8000, 2, 'aceite.jpg', 3),
+('Sal Marina', 'Sal natural sin refinar', 3000, 2, 'sal.jpg', 2);
 
 INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id) VALUES
 ('COMP1', 1, 14000, 2),
