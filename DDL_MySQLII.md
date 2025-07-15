@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS stateorregions (
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS citiesormunicipalities (
-    code VARCHAR(6) PRIMARY KEY,
+    code VARCHAR(10) PRIMARY KEY,
     name VARCHAR(40) NOT NULL,
     statereg_id VARCHAR(6) NOT NULL,
     CONSTRAINT FK_statereg_idcities FOREIGN KEY (statereg_id) REFERENCES stateorregions(code)
@@ -123,14 +123,23 @@ CREATE TABLE IF NOT EXISTS companies (
     CONSTRAINT FK_type_idcompa FOREIGN KEY (type_id) REFERENCES typesidentifications(id),
     name VARCHAR(80) NOT NULL,
     category_id INT NOT NULL,
-    CONSTRAINT FK_category_idcompa FOREIGN KEY (category_id) REFERENCES categories(id),
-    address VARCHAR(80) NOT NULL,
-    city_id VARCHAR(6) NOT NULL,
+    CONSTRAINT FK_category_idcompa FOREIGN KEY (category_id) REFERENCES categories(id), 
+    city_id VARCHAR(10) NOT NULL,
     CONSTRAINT FK_city_idcompa FOREIGN KEY (city_id) REFERENCES citiesormunicipalities(code),
     audience_id INT NOT NULL,
     CONSTRAINT FK_audience_idcompa FOREIGN KEY (audience_id) REFERENCES audiences(id),
     cellphone VARCHAR(15) UNIQUE NOT NULL,
     email VARCHAR(80) UNIQUE NOT NULL
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(60) UNIQUE NOT NULL,
+    detail TEXT NOT NULL,
+    price DOUBLE NOT NULL,
+    category_id INT(11) NOT NULL,
+    CONSTRAINT FK_category_idprod FOREIGN KEY (category_id) REFERENCES categories(id),
+    image VARCHAR(80) NOT NULL 
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS companyproducts (
@@ -147,22 +156,13 @@ CREATE TABLE IF NOT EXISTS companyproducts (
 CREATE TABLE IF NOT EXISTS customers (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(80) NOT NULL,
-    city_id VARCHAR(6) NOT NULL,
+    city_id VARCHAR(10) NOT NULL,
     CONSTRAINT FK_city_idcustomers FOREIGN KEY (city_id) REFERENCES citiesormunicipalities(code),
     audience_id INT NOT NULL,
     CONSTRAINT FK_audience_idcustomers FOREIGN KEY (audience_id) REFERENCES audiences(id),
     cellphone VARCHAR(15) UNIQUE NOT NULL,
-    email VARCHAR(80) UNIQUE NOT NULL
-) ENGINE = INNODB;
-
-CREATE TABLE IF NOT EXISTS products (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(60) UNIQUE NOT NULL,
-    detail TEXT NOT NULL,
-    price DOUBLE NOT NULL,
-    category_id INT(11) NOT NULL,
-    CONSTRAINT FK_category_idprod FOREIGN KEY (category_id) REFERENCES categories(id),
-    image VARCHAR(80) NOT NULL 
+    email VARCHAR(80) UNIQUE NOT NULL,
+    membership_active BOOLEAN NOT NULL
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS quality_products (
@@ -174,9 +174,9 @@ CREATE TABLE IF NOT EXISTS quality_products (
     CONSTRAINT FK_poll_idquality FOREIGN KEY (poll_id) REFERENCES polls(id),
     company_id VARCHAR(20) NOT NULL,
     CONSTRAINT FK_company_idquality FOREIGN KEY (company_id) REFERENCES companies(id),
-    PRIMARY KEY (product_id, customer_id, poll_id),
     daterating DATETIME NOT NULL,
-    rating DOUBLE NOT NULL
+    rating DOUBLE NOT NULL,
+    PRIMARY KEY (product_id, customer_id, poll_id)
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS favorites (
@@ -206,4 +206,6 @@ CREATE TABLE IF NOT EXISTS rates (
     rating DOUBLE NOT NULL,
     PRIMARY KEY (customer_id, company_id, poll_id)
 ) ENGINE = INNODB;
+
+SHOW TABLES;
 ```
