@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS stateorregions (
 
 CREATE TABLE IF NOT EXISTS citiesormunicipalities (
     code VARCHAR(6) PRIMARY KEY,
-    name VARCHAR(40) UNIQUE NOT NULL,
+    name VARCHAR(40) NOT NULL,
     statereg_id VARCHAR(6) NOT NULL,
     CONSTRAINT FK_statereg_idcities FOREIGN KEY (statereg_id) REFERENCES stateorregions(code)
 ) ENGINE = INNODB;
