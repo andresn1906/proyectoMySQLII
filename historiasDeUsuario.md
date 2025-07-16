@@ -1898,90 +1898,739 @@ CALL Top10ProductosPorCiudad();
 
 ### 5. Triggers:
 
-Actualizar la fecha de modificación de un producto
-```sql
+01.5 Actualizar la fecha de modificación de un producto.
+🧠 Explicación: Cada vez que se actualiza un producto, queremos que el campo *updated_at* se actualice automáticamente con la fecha actual *(NOW())*, sin tener que hacerlo manualmente desde la app.
+🔁 Se usa un *BEFORE UPDATE*.
 
+```sql
+-- Modificar la TABLE *products*:
+ALTER TABLE products
+ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP;
+
+DELIMITER $$
+
+CREATE TRIGGER before_update_products_timestamp
+BEFORE UPDATE ON products
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = NOW();
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+SELECT id, name, updated_at FROM products WHERE id = 1;
+UPDATE products SET name = 'Arroz Integral' WHERE id = 1;
+SELECT id, name, updated_at FROM products WHERE id = 1;
 ```
-Registrar log cuando un cliente califica un producto
-```sql
 
+02.5 Registrar log cuando un cliente califica un producto.
+🧠 Explicación: Cuando alguien inserta una fila en *rates*, el *trigger* crea automáticamente un registro en *log_acciones* con la información del cliente y producto calificado.
+🔁 Se usa un *AFTER INSERT* sobre *rates*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_insert_rates_log
+AFTER INSERT ON rates
+FOR EACH ROW
+BEGIN
+    DECLARE v_product_id INT;
+
+    SELECT product_id INTO v_product_id
+    FROM quality_products
+    WHERE poll_id = NEW.poll_id
+      AND company_id = NEW.company_id
+      AND customer_id = NEW.customer_id
+    LIMIT 1;
+
+
+    INSERT INTO log_acciones (
+    tipo_accion,
+    descripcion,
+    customer_id,
+    producto_id
+    ) VALUES (
+        'Calificación de producto',
+        CONCAT('El cliente ', NEW.customer_id, ' calificó el producto ', v_product_id),
+        NEW.customer_id,
+        v_product_id
+    );
+END$$
+
+DELIMITER ;
+
+-- INSERTS:
+INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating)
+VALUES (1, 'COMP1', 1, NOW(), 4.5);
+
+-- Verificación:
+SELECT * 
+FROM log_acciones 
+ORDER BY fecha_accion DESC;
 ```
-Impedir insertar productos sin unidad de medida
-```sql
 
+03.5 Impedir insertar productos sin unidad de medida.
+🧠 Explicación: Antes de guardar un nuevo producto, el *trigger* revisa si *unit_id* es *NULL*. Si lo es, lanza un error con *SIGNAL*.
+🔁 Se usa un *BEFORE INSERT*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_insert_products_check_unit
+BEFORE INSERT ON products
+FOR EACH ROW
+BEGIN
+    IF NEW.unitofmeasure_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede insertar un producto sin unidad de medida.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- INSERT:
+INSERT INTO products (name, unitofmeasure_id, detail, price, category_id, image) VALUES (
+'Producto Válido', 1, 'Arroz blanco empacado', 3200.00, 1, 'arroz_blanco.jpg'
+);
+
+-- Verificación:
+SELECT * 
+FROM products
+WHERE name = 'Producto Válido';
 ```
-Validar calificaciones no mayores a 5
-```sql
 
+04.5 Validar calificaciones no mayores a 5.
+🧠 Explicación: Si alguien intenta insertar una calificación de 6 o más, se bloquea automáticamente. Esto evita errores o trampa.
+🔁 Se usa un *BEFORE INSERT*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_insert_rates_limitar_rating
+BEFORE INSERT ON rates
+FOR EACH ROW
+BEGIN
+    IF NEW.rating > 5 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La calificación no puede ser mayor a 5.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación del ERROR:
+INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating)
+VALUES (1, 'COMP1', 3, NOW(), 6.5);
+
+INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating)
+VALUES (2, 'COMP1', 2, NOW(), 6.5); 
 ```
-Actualizar estado de membresía cuando vence
-```sql
 
+05.5 Actualizar estado de membresía cuando vence.
+🧠 Explicación: Cuando se actualiza un periodo de membresía (*membershipperiods*), si *end_date* ya pasó, se puede cambiar el campo *status* a '*INACTIVA*'.
+🔁 *AFTER UPDATE* o *BEFORE UPDATE* dependiendo de la lógica.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_update_membershipperiods_status
+BEFORE UPDATE ON membershipperiods
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha_fin < CURDATE() THEN
+        SET NEW.status = 'INACTIVA';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+UPDATE membershipperiods
+SET fecha_fin = fecha_fin - INTERVAL 0 DAY 
+WHERE membership_id = 1 AND period_id = 2;
+
+SELECT membership_id, period_id, fecha_fin, status
+FROM membershipperiods
+WHERE membership_id = 1 AND period_id = 2;
 ```
-Evitar duplicados de productos por empresa
-```sql
 
+06.5 Evitar duplicados de productos por empresa.
+🧠 Explicación: Antes de insertar un nuevo producto en *companyproducts*, el *trigger* puede consultar si ya existe uno con el mismo *product_id* y *company_id*.
+🔁 *BEFORE INSERT*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_insert_companyproducts_no_duplicado
+BEFORE INSERT ON companyproducts
+FOR EACH ROW
+BEGIN
+    DECLARE v_existe INT;
+
+    SELECT COUNT(*) INTO v_existe
+    FROM companyproducts
+    WHERE company_id = NEW.company_id
+      AND product_id = NEW.product_id;
+
+    IF v_existe > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Este producto ya está registrado para esta empresa.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- INSERT y Verificación:
+INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id, available_product)
+VALUES ('COMP1', 9, 8500, 1, 1);
+
+INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id, available_product)
+VALUES ('COMP1', 9, 8500, 1, 1); -- Al ejecutar de nuevo, generará el error del TRIGGER:
+
+-- Error:
+ERROR 1644 (45000): Este producto ya está registrado para esta empresa.
 ```
-Enviar notificación al añadir un favorito
-```sql
 
+07.5 Enviar notificación al añadir un favorito.
+🧠 Explicación: Después de un *INSERT* en *details_favorites*, el *trigger* agrega un mensaje a una tabla notificaciones.
+🔁 *AFTER INSERT*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_insert_detailsfavorites_notificacion
+AFTER INSERT ON details_favorites
+FOR EACH ROW
+BEGIN
+    DECLARE v_customer_id INT;
+    DECLARE v_product_name VARCHAR(100);
+
+    SELECT f.customer_id INTO v_customer_id
+    FROM favorites f
+    WHERE f.id = NEW.favorite_id;
+
+    SELECT p.name INTO v_product_name
+    FROM products p
+    WHERE p.id = NEW.product_id;
+
+    INSERT INTO notificaciones (mensaje)
+    VALUES (
+        CONCAT('El cliente ', v_customer_id, ' añadió el producto "', v_product_name, '" a sus favoritos.')
+    );
+END$$
+
+DELIMITER ;
+
+-- INSERT:
+INSERT INTO details_favorites (favorite_id, product_id, created_at)
+VALUES (1, 4, CURDATE());
+
+-- Verificación:
+SELECT * FROM notificaciones ORDER BY fecha DESC;
 ```
-Insertar fila en quality_products tras calificación
-```sql
 
+08.5 Insertar fila en quality_products tras calificación.
+🧠 Explicación: Al insertar una nueva calificación en *rates*, se crea automáticamente un registro en *quality_products* para mantener métricas de calidad.
+🔁 *AFTER INSERT*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_insert_rates_to_quality_products
+AFTER INSERT ON rates
+FOR EACH ROW
+BEGIN
+    DECLARE v_product_id INT;
+
+    SELECT product_id INTO v_product_id
+    FROM quality_products
+    WHERE poll_id = NEW.poll_id
+      AND company_id = NEW.company_id
+      AND customer_id = NEW.customer_id
+    LIMIT 1;
+
+    IF v_product_id IS NOT NULL THEN
+        INSERT INTO quality_products (
+            product_id,
+            company_id,
+            poll_id,
+            customer_id,
+            rating,
+            daterating
+        ) VALUES (
+            v_product_id,
+            NEW.company_id,
+            NEW.poll_id,
+            NEW.customer_id,
+            NEW.rating,
+            NEW.daterating
+        );
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- INSERT:
+SELECT * 
+FROM rates
+WHERE customer_id = 2 AND company_id = 'COMP1' AND poll_id = 3;
+
+-- Verificación:
+SELECT * 
+FROM quality_products
+WHERE customer_id = 2 AND company_id = 'COMP1' AND poll_id = 3
+ORDER BY daterating DESC;
+-- (Empty Set) El *trigger* se ejecutó correctamente pero no se hizo ningún INSERT pues es el primero que se hace.
 ```
-Eliminar favoritos si se elimina el producto
-```sql
 
+09.5 Eliminar favoritos si se elimina el producto.
+🧠 Explicación: Cuando se borra un producto, el *trigger* elimina las filas en *details_favorites* donde estaba ese producto.
+🔁 *AFTER DELETE* en products.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_delete_products_cleanup_favorites
+AFTER DELETE ON products
+FOR EACH ROW
+BEGIN
+    DELETE FROM details_favorites
+    WHERE product_id = OLD.id;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+SELECT * 
+FROM details_favorites 
+WHERE product_id = 4;
+
+SELECT * 
+FROM details_favorites 
+WHERE product_id = 4;
 ```
-Bloquear modificación de audiencias activas
-```sql
 
+10.5 Bloquear modificación de audiencias activas.
+🧠 Explicación: Si un usuario intenta modificar una audiencia que está en uso, el *trigger* lanza un error con *SIGNAL*.
+🔁 *BEFORE UPDATE*.
+
+```sql
+-- Modificar TABLE audiences:
+ALTER TABLE audiences ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVA';
+
+DELIMITER $$
+
+CREATE TRIGGER before_update_audiences_bloquear_activas
+BEFORE UPDATE ON audiences
+FOR EACH ROW
+BEGIN
+    IF OLD.status = 'ACTIVA' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede modificar una audiencia activa.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación del ERROR:
+UPDATE audiences
+SET description = 'Audiencia Modificada'
+WHERE id = 1;
 ```
-Recalcular promedio de calidad del producto tras nueva evaluación
-```sql
 
+11.5 Recalcular promedio de calidad del producto tras nueva evaluación.
+🧠 Explicación: Después de insertar en *rates*, el *trigger* actualiza el campo *average_rating* del producto usando *AVG()*.
+🔁 *AFTER INSERT*.
+
+```sql
+-- Modificar TABLE products (si no se ha hecho antes):
+ALTER TABLE products ADD COLUMN promedio_calidad DOUBLE DEFAULT NULL;
+
+DELIMITER $$
+
+CREATE TRIGGER after_insert_rates_recalcular_promedio
+AFTER INSERT ON rates
+FOR EACH ROW
+BEGIN
+    DECLARE v_product_id INT;
+
+    SELECT product_id INTO v_product_id
+    FROM quality_products
+    WHERE customer_id = NEW.customer_id
+      AND company_id = NEW.company_id
+      AND poll_id = NEW.poll_id
+    LIMIT 1;
+
+    IF v_product_id IS NOT NULL THEN
+        UPDATE products
+        SET promedio_calidad = (
+            SELECT ROUND(AVG(r.rating), 2)
+            FROM rates r
+            JOIN quality_products qp
+              ON r.customer_id = qp.customer_id
+             AND r.company_id = qp.company_id
+             AND r.poll_id = qp.poll_id
+            WHERE qp.product_id = v_product_id
+        )
+        WHERE id = v_product_id;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+DELETE FROM rates
+WHERE customer_id = 3 AND company_id = 'COMP1' AND poll_id = 1;
+
+INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating)
+VALUES (3, 'COMP1', 1, NOW(), 4.7);
+
+SELECT id, name, promedio_calidad
+FROM products
+WHERE id = 1;
 ```
-Registrar asignación de nuevo beneficio
-```sql
 
+12.5 Registrar asignación de nuevo beneficio.
+🧠 Explicación: Cuando se hace *INSERT* en *membershipbenefits* o *audiencebenefits*, se agrega un log en *bitacora*.
+
+```sql
+-- Primer *TRIGGER*:
+DELIMITER $$
+
+CREATE TRIGGER after_insert_membershipbenefits_bitacora
+AFTER INSERT ON membershipbenefits
+FOR EACH ROW
+BEGIN
+    INSERT INTO bitacora (mensaje)
+    VALUES (
+        CONCAT('Se asignó el beneficio ', NEW.benefit_id, ' a la membresía ', NEW.membership_id)
+    );
+END$$
+
+DELIMITER ;
+
+-- Segundo *TRIGGER*:
+DELIMITER $$
+
+CREATE TRIGGER after_insert_audiencebenefits_bitacora
+AFTER INSERT ON audiencebenefits
+FOR EACH ROW
+BEGIN
+    INSERT INTO bitacora (mensaje)
+    VALUES (
+        CONCAT('Se asignó el beneficio ', NEW.benefit_id, ' a la audiencia ', NEW.audience_id)
+    );
+END$$
+
+DELIMITER ;
+
+-- INSERTS y Verificación:
+INSERT INTO membershipbenefits (membership_id, period_id, benefit_id, audience_id)
+VALUES (1, 1, 2, 1);
+
+INSERT INTO audiencebenefits (audience_id, benefit_id)
+VALUES (3, 1);
+
+SELECT * 
+FROM bitacora 
+ORDER BY fecha DESC;
 ```
-Impedir doble calificación por parte del cliente
-```sql
 
+13.5 Impedir doble calificación por parte del cliente.
+🧠 Explicación: Antes de insertar en *rates*, el *trigger* verifica si ya existe una calificación de ese *customer_id* y *product_id*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_insert_rates_prevenir_doble_calificacion
+BEFORE INSERT ON rates
+FOR EACH ROW
+BEGIN
+    DECLARE v_product_id INT;
+
+    SELECT product_id INTO v_product_id
+    FROM quality_products
+    WHERE customer_id = NEW.customer_id
+      AND company_id = NEW.company_id
+      AND poll_id = NEW.poll_id
+    LIMIT 1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM quality_products qp
+        JOIN rates r ON qp.customer_id = r.customer_id
+                    AND qp.company_id = r.company_id
+                    AND qp.poll_id = r.poll_id
+        WHERE qp.product_id = v_product_id
+          AND r.customer_id = NEW.customer_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'El cliente ya calificó este producto anteriormente.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating)
+VALUES (3, 'COMP1', 2, NOW(), 4.2);
 ```
-Validar correos duplicados en clientes
-```sql
 
+14.5 Validar correos duplicados en clientes.
+🧠 Explicación: Verifica, antes del *INSERT*, si el correo ya existe en la tabla *customers*. Si sí, lanza un error.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_insert_customers_cellphone_unico
+BEFORE INSERT ON customers
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM customers
+        WHERE cellphone = NEW.cellphone
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ya existe un cliente con este número de celular.';
+    END IF;
+END$$
+
+DELIMITER ;
+-- Verificación del ERROR:
+INSERT INTO customers (name, city_id, audience_id, cellphone, email, membership_active) VALUES
+('Andrés Suárez', '05001', 1, '3138430142', 'andresuarez@mail.com', 1); 
 ```
-Eliminar detalles de favoritos huérfanos
-```sql
 
+15.5 Eliminar detalles de favoritos huérfanos.
+🧠 Explicación: Si se elimina un registro de *favorites*, se borran automáticamente sus detalles asociados.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_delete_favorites_cleanup_details
+AFTER DELETE ON favorites
+FOR EACH ROW
+BEGIN
+    DELETE FROM details_favorites
+    WHERE favorite_id = OLD.id;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+DELETE FROM details_favorites 
+WHERE favorite_id = 1;
+
+SELECT * 
+FROM details_favorites 
+WHERE favorite_id = 1;
+-- (Empty Set) Se ha eliminado el favorito correctamente.
 ```
-Actualizar campo updated_at en companies
-```sql
 
+16.5 Actualizar campo updated_at en companies.
+🧠 Explicación: Como en productos, actualiza automáticamente la fecha de última modificación cada vez que se cambia algún dato.
+
+```sql
+-- Modificar la TABLE companies:
+ALTER TABLE companies
+ADD COLUMN updated_at DATETIME DEFAULT NULL;
+
+DELIMITER $$
+
+CREATE TRIGGER before_update_companies_set_updated_at
+BEFORE UPDATE ON companies
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = NOW();
+END$$
+
+DELIMITER ;
+
+-- Verficación:
+UPDATE companies 
+SET name = 'Empresa Actualizada' 
+WHERE id = 'COMP1';
+
+SELECT id, name, updated_at 
+FROM companies 
+WHERE id = 'COMP1';
 ```
-Impedir borrar ciudad si hay empresas activas
-```sql
 
+17.5 Impedir borrar ciudad si hay empresas activas.
+🧠 Explicación: Antes de hacer *DELETE* en *citiesormunicipalities*, el *trigger* revisa si hay empresas registradas en esa ciudad.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_delete_city_verificar_empresas
+BEFORE DELETE ON citiesormunicipalities
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM companies WHERE city_id = OLD.code
+    ) THEN
+        INSERT INTO errores_log (
+            tipo_error,
+            descripcion,
+            entidad_origen,
+            id_origen
+        ) VALUES (
+            'Eliminación bloqueada',
+            CONCAT('Se intentó eliminar la ciudad "', OLD.name, '" (código ', OLD.code, ') con empresas registradas.'),
+            'citiesormunicipalities',
+            OLD.code
+        );
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede eliminar la ciudad: existen empresas registradas en ella.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+-- Verificación del ERROR:
+SELECT * 
+FROM companies 
+WHERE city_id = '05001';
+
+DELETE FROM citiesormunicipalities 
+WHERE code = '05001';
 ```
-Registrar cambios de estado en encuestas
-```sql
 
+18.5 Registrar cambios de estado en encuestas.
+🧠 Explicación: Cada vez que se actualiza el campo *status* en *polls*, el *trigger* guarda la fecha, nuevo estado y usuario en un *log*.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_update_isactive_poll
+AFTER UPDATE ON polls
+FOR EACH ROW
+BEGIN
+    IF NOT (OLD.isactive <=> NEW.isactive) THEN
+        INSERT INTO log_cambios_encuestas (poll_id, nuevo_estado, usuario)
+        VALUES (NEW.id, NEW.isactive, 'sistema');
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación con UPDATE:
+UPDATE polls 
+SET isactive = 0 
+WHERE id = 1;
+
+SELECT * 
+FROM log_cambios_encuestas 
+ORDER BY fecha_cambio DESC;
 ```
-Sincronizar *rates* y *quality_products*
-```sql
 
+19.5 Sincronizar *rates* y *quality_products*.
+🧠 Explicación: Inserta o actualiza la calidad del producto en *quality_products* cada vez que se inserta una nueva calificación.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_insert_rates_sync_quality_products
+AFTER INSERT ON rates
+FOR EACH ROW
+BEGIN
+    DECLARE v_product_id INT;
+
+    SELECT product_id INTO v_product_id
+    FROM poll_product
+    WHERE poll_id = NEW.poll_id;
+
+    IF v_product_id IS NOT NULL THEN
+
+        IF EXISTS (
+            SELECT 1 FROM quality_products
+            WHERE customer_id = NEW.customer_id
+              AND company_id = NEW.company_id
+              AND poll_id = NEW.poll_id
+        ) THEN
+            UPDATE quality_products
+            SET rating = NEW.rating,
+                daterating = NEW.daterating
+            WHERE customer_id = NEW.customer_id
+              AND company_id = NEW.company_id
+              AND poll_id = NEW.poll_id;
+        ELSE
+            INSERT INTO quality_products (
+                product_id, company_id, poll_id, customer_id, rating, daterating
+            ) VALUES (
+                v_product_id, NEW.company_id, NEW.poll_id, NEW.customer_id, NEW.rating, NEW.daterating
+            );
+        END IF;
+
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+
+INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating) VALUES 
+(3, 'COMP1', 1, NOW(), 4.8);
+
+SELECT * 
+FROM quality_products
+WHERE customer_id = 3 AND company_id = 'COMP1' AND poll_id = 1;
 ```
-Eliminar productos sin relación a empresas
-```sql
 
+20.5 Eliminar productos sin relación a empresas.
+🧠 Explicación: Después de borrar la última relación entre un producto y una empresa (*companyproducts*), el *trigger* puede eliminar ese producto.
+
+```sql
+DELIMITER $$
+
+CREATE TRIGGER after_delete_companyproducts_cleanup_product
+AFTER DELETE ON companyproducts
+FOR EACH ROW
+BEGIN
+    DECLARE v_uso_favoritos INT DEFAULT 0;
+    DECLARE v_uso_calidad INT DEFAULT 0;
+    DECLARE v_uso_empresas INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_uso_empresas
+    FROM companyproducts
+    WHERE product_id = OLD.product_id;
+
+    SELECT COUNT(*) INTO v_uso_favoritos
+    FROM details_favorites
+    WHERE product_id = OLD.product_id;
+
+    SELECT COUNT(*) INTO v_uso_calidad
+    FROM quality_products
+    WHERE product_id = OLD.product_id;
+
+    IF v_uso_empresas = 0 AND v_uso_favoritos = 0 AND v_uso_calidad = 0 THEN
+        DELETE FROM products
+        WHERE id = OLD.product_id;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Verificación:
+DELETE FROM companyproducts 
+WHERE company_id = 'COMP1' AND product_id = 1;
+
+SELECT * 
+FROM products 
+WHERE id = 1;
 ```
 
 ### 6. Events:
 
-01.6 Borrar productos sin actividad cada 6 meses
+01.6 Borrar productos sin actividad cada 6 meses.
+🧠 Explicación: Algunos productos pueden haber sido creados pero nunca calificados, marcados como favoritos ni asociados a una empresa. Este evento eliminaría esos productos cada 6 meses.
+🛠️ Se usaría un DELETE sobre products donde no existan registros en rates, favorites ni companyproducts.
+📅 Frecuencia del evento: EVERY 6 MONTH.
+
 ```sql
 
 ```
