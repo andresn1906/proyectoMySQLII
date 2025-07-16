@@ -227,7 +227,6 @@ LEFT JOIN quality_products qp
   ON qp.product_id = df.product_id 
   AND qp.customer_id = f.customer_id
 WHERE qp.product_id IS NULL;
-
 ```
 17.1 Como desarrollador, deseo consultar los beneficios asignados a cada audiencia junto con su descripción.
 ```sql
@@ -370,7 +369,7 @@ WHERE qp.rating < (
     JOIN products p2 ON qp2.product_id = p2.id
     WHERE p2.category_id = pro.category_id
 );
--- (Empty Set) Ninguno producto tiene una calificación menor al mínimo de su categoría.
+-- (Empty Set) Ningún producto tiene una calificación menor al mínimo de su categoría.
 ```
 07.2 Como desarrollador, deseo listar las ciudades que no tienen clientes registrados.
 ```sql
@@ -404,7 +403,15 @@ WHERE b.id NOT IN (
 ```
 10.2 Como cliente, deseo obtener mis productos favoritos que no están disponibles actualmente en ninguna empresa.
 ```sql
-
+SELECT DISTINCT pro.id AS IdProducto, pro.name AS Producto
+FROM products pro
+JOIN details_favorites df ON pro.id = df.product_id
+JOIN favorites f ON df.favorite_id = f.id
+WHERE pro.id NOT IN (
+    SELECT cp.product_id
+    FROM companyproducts cp
+    WHERE cp.available_product = 1
+);
 ```
 11.2 Como director, deseo consultar los productos vendidos en empresas cuya ciudad tenga menos de tres empresas registradas.
 ```sql
@@ -464,8 +471,8 @@ FROM companyproducts cp
 JOIN products pro ON cp.product_id = pro.id
 JOIN companies em ON cp.company_id = em.id
 WHERE cp.price = (
-  SELECT MAX(price)
-  FROM companyproducts
+    SELECT MAX(price)
+    FROM companyproducts
 );
 ```
 15.2 Como cliente, quiero saber si algún producto de mis favoritos ha sido calificado por otro cliente con más de 4 estrellas.
@@ -544,85 +551,620 @@ AND cu.id NOT IN (
 
 ### 3. Funciones Agregadas:
 
-Obtener el promedio de calificación por producto
-```sql
+01.3 Obtener el promedio de calificación por producto.
+🔍 *Explicación para dummies*: La persona encargada de revisar el rendimiento quiere saber qué tan bien calificado está cada producto. Con *AVG(rating)* agrupado por *product_id*, puede verlo de forma resumida.
 
+```sql
+DELIMITER //
+CREATE FUNCTION fn_promedio_calificacion_producto(
+    p_product_id INT
+)
+RETURNS DECIMAL(3,1)
+DETERMINISTIC
+BEGIN
+    DECLARE v_promedio DECIMAL(3,1);
+    
+    SELECT AVG(rating) INTO v_promedio
+    FROM quality_products
+    WHERE product_id = p_product_id;
+    
+    IF v_promedio IS NULL THEN
+        RETURN 0.0; 
+    ELSE
+        RETURN ROUND(v_promedio, 1);
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Uso de la función:
+SELECT pro.name AS Producto,
+fn_promedio_calificacion_producto(pro.id) AS CalificaciónPromedio
+FROM products pro
+ORDER BY CalificaciónPromedio DESC;
 ```
-Contar cuántos productos ha calificado cada cliente
-```sql
 
+02.3 Contar cuántos productos ha calificado cada cliente.
+🔍 Explicación: Aquí se quiere saber quiénes están activos opinando. Se usa *COUNT(*)* sobre rates, agrupando por *customer_id*.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_productos_calificados_por_cliente(
+    p_customer_id INT 
+)
+RETURNS INT 
+DETERMINISTIC
+BEGIN
+    DECLARE v_total_productos INT;
+    
+    SELECT COUNT(DISTINCT product_id) INTO v_total_productos
+    FROM quality_products
+    WHERE customer_id = p_customer_id;
+    
+    RETURN IFNULL(v_total_productos, 0);
+END //
+
+DELIMITER ;
+
+-- Uso de la función:
+SELECT 
+c.id, c.name AS Cliente,
+fn_productos_calificados_por_cliente(c.id) AS ProductosCalificados
+FROM customers c
+ORDER BY ProductosCalificados DESC;
 ```
-Sumar el total de beneficios asignados por audiencia
-```sql
 
+03.3 Sumar el total de beneficios asignados por audiencia.
+🔍 Explicación: El auditor busca cuántos beneficios tiene cada tipo de usuario. Con *COUNT(*)* agrupado por *audience_id* en *audiencebenefits*, lo obtiene.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_total_beneficios_audiencia(
+    p_audience_id INT
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total_beneficios INT;
+    
+    SELECT COUNT(*) INTO v_total_beneficios
+    FROM audiencebenefits
+    WHERE audience_id = p_audience_id;
+    
+    RETURN IFNULL(v_total_beneficios, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT 
+a.id, a.description AS Audiencia,
+fn_total_beneficios_audiencia(a.id) AS TotalBeneficios
+FROM audiences a
+ORDER BY TotalBeneficios DESC;
 ```
-Calcular la media de productos por empresa
-```sql
 
+04.3 Calcular la media de productos por empresa.
+🔍 Explicación: El administrador quiere saber si las empresas están ofreciendo pocos o muchos productos. Cuenta los productos por empresa y saca el promedio con *AVG(cantidad)*.
+
+```sql
+DELIMITER //
+
+CREATE FUNCTION fn_media_productos_por_empresa()
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_media DECIMAL(10,2);
+    
+    SELECT AVG(productos_por_empresa) INTO v_media
+    FROM (
+        SELECT COUNT(*) AS productos_por_empresa
+        FROM companyproducts
+        GROUP BY company_id
+    ) AS conteo_productos;
+    
+    RETURN IFNULL(v_media, 0);
+END //
+
+DELIMITER ;
+
+-- Uso de la función:
+SELECT fn_media_productos_por_empresa() AS MediaProductosGeneral;
 ```
-Contar el total de empresas por ciudad
-```sql
 
+05.3 Contar el total de empresas por ciudad.
+🔍 Explicación: La idea es ver en qué ciudades hay más movimiento empresarial. Se usa *COUNT(*)* en *companies*, agrupando por *city_id*.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_total_empresas_ciudad(p_city_code VARCHAR(10))
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total INT;
+    
+    SELECT COUNT(*) INTO v_total
+    FROM companies
+    WHERE city_id = p_city_code;
+    
+    RETURN IFNULL(v_total, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT com.name AS Ciudad,
+fn_total_empresas_ciudad(com.code) AS TotalEmpresas
+FROM citiesormunicipalities com
+WHERE 
+    fn_total_empresas_ciudad(com.code) > 0;
 ```
-Calcular el promedio de precios por unidad de medida
-```sql
 
+06.3 Calcular el promedio de precios por unidad de medida.
+🔍 Explicación: Se necesita saber si los precios son coherentes según el tipo de medida. Con *AVG(price)* agrupado por *unit_id*, se compara cuánto cuesta el litro, kilo, unidad, etc.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_promedio_precio_unidad(p_unit_id INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_promedio DECIMAL(10,2);
+    
+    SELECT AVG(cp.price) INTO v_promedio
+    FROM companyproducts cp
+    JOIN products p ON cp.product_id = p.id
+    WHERE p.unitofmeasure_id = p_unit_id;
+    
+    RETURN IFNULL(v_promedio, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT u.description AS UnidadDeMedida,
+fn_promedio_precio_unidad(u.id) AS PrecioPromedio
+FROM unitofmeasure u
+WHERE fn_promedio_precio_unidad(u.id) > 0;
 ```
-Contar cuántos clientes hay por ciudad
-```sql
 
+07.3 Contar cuántos clientes hay por ciudad.
+🔍 Explicación: Con *COUNT(*)* agrupado por *city_id* en la tabla *customers*, se obtiene la cantidad de clientes que hay en cada zona.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_total_clientes_ciudad(p_city_code VARCHAR(10))
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total INT;
+    
+    SELECT COUNT(*) INTO v_total
+    FROM customers
+    WHERE city_id = p_city_code;
+    
+    RETURN IFNULL(v_total, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT com.name AS Ciudad,
+fn_total_clientes_ciudad(com.code) AS TotalClientes
+FROM citiesormunicipalities com
+WHERE fn_total_clientes_ciudad(com.code) > 0
+ORDER BY TotalClientes DESC;
 ```
-Calcular planes de membresía por periodo
-```sql
 
+08.3 Calcular planes de membresía por periodo.
+🔍 Explicación: Sirve para ver qué tantos planes están vigentes cada mes o trimestre. Se agrupa por periodo (*start_date*, *end_date*) y se cuenta cuántos registros hay.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_planes_membresia_por_periodo(p_period_id INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total INT;
+    
+    SELECT COUNT(*) INTO v_total
+    FROM membershipperiods
+    WHERE period_id = p_period_id;
+    
+    RETURN IFNULL(v_total, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT pe.name AS Periodo,
+fn_planes_membresia_por_periodo(pe.id) AS TotalPlanes
+FROM periods pe
+ORDER BY TotalPlanes DESC;
 ```
-Ver el promedio de calificaciones dadas por un cliente a sus favoritos
-```sql
 
+09.3 Ver el promedio de calificaciones dadas por un cliente a sus favoritos.
+🔍 Explicación: El cliente quiere saber cómo ha calificado lo que más le gusta. Se hace un JOIN entre favoritos y calificaciones, y se saca *AVG(rating)*.
+```sql
+DELIMITER //
+CREATE FUNCTION fn_promedio_calificaciones_favoritos(p_customer_id INT)
+RETURNS DECIMAL(3,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_promedio DECIMAL(3,2);
+    
+    SELECT AVG(r.rating) INTO v_promedio
+    FROM favorites f
+    JOIN details_favorites df ON f.id = df.favorite_id
+    JOIN rates r ON f.customer_id = r.customer_id AND f.company_id = r.company_id
+    WHERE f.customer_id = p_customer_id;
+    
+    RETURN IFNULL(v_promedio, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT c.name AS Cliente,
+fn_promedio_calificaciones_favoritos(c.id) AS PromedioCalificacionesFav
+FROM customers c
+WHERE fn_promedio_calificaciones_favoritos(c.id) > 0;
 ```
-Consultar la fecha más reciente en que se calificó un producto
-```sql
+10.3 Consultar la fecha más reciente en que se calificó un producto.
+🔍 Explicación: Busca el *MAX(created_at)* agrupado por producto. Así sabe cuál fue la última vez que se evaluó cada uno.
 
+```sql
+DELIMITER //
+CREATE FUNCTION fn_ultima_calificacion_producto(p_product_id INT)
+RETURNS DATETIME
+DETERMINISTIC
+BEGIN
+    DECLARE v_fecha_reciente DATETIME;
+    
+    SELECT MAX(q.daterating) INTO v_fecha_reciente
+    FROM quality_products q
+    WHERE q.product_id = p_product_id;
+    
+    RETURN v_fecha_reciente;
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT pro.name AS Producto,
+fn_ultima_calificacion_producto(pro.id) AS CalificaciónReciente
+FROM products pro
+WHERE fn_ultima_calificacion_producto(pro.id) IS NOT NULL
+ORDER BY CalificaciónReciente DESC;
 ```
-Obtener la desviación estándar de precios por categoría
-```sql
 
+11.3 Obtener la desviación estándar de precios por categoría.
+🔍 Explicación: Usando *STDDEV(price)* en *companyproducts* agrupado por *category_id*, se puede ver si hay mucha diferencia de precios dentro de una categoría.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_desviacion_categoria(p_category_id INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_desviacion DECIMAL(10,2);
+    
+    SELECT STDDEV(cp.price) INTO v_desviacion
+    FROM companyproducts cp
+    JOIN products p ON cp.product_id = p.id
+    WHERE p.category_id = p_category_id;
+    
+    RETURN IFNULL(v_desviacion, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT cat.description AS Categoría,
+fn_desviacion_categoria(cat.id) AS DesviacionEstándar,
+(
+    SELECT COUNT(cp.product_id)
+    FROM products pro 
+    JOIN companyproducts cp ON pro.id = cp.product_id 
+    WHERE pro.category_id = cat.id) AS Productos
+FROM categories cat
+ORDER BY DesviacionEstándar DESC;
 ```
-Contar cuántas veces un producto fue favorito
-```sql
 
+12.3 Contar cuántas veces un producto fue favorito.
+🔍 Explicación: Con *COUNT(*)* en *details_favorites*, agrupado por *product_id*, se obtiene cuáles productos son los más populares entre los clientes.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_contar_favoritos_producto(p_product_id INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total INT;
+    
+    SELECT COUNT(*) INTO v_total
+    FROM details_favorites
+    WHERE product_id = p_product_id;
+    
+    RETURN IFNULL(v_total, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT pro.name AS Producto,
+fn_contar_favoritos_producto(pro.id) AS VecesFavorito
+FROM products pro
+WHERE fn_contar_favoritos_producto(pro.id) > 0
+ORDER BY VecesFavorito DESC;
 ```
-Calcular el porcentaje de productos evaluados
-```sql
 
+13.3 Calcular el porcentaje de productos evaluados.
+🔍 Explicación: Cuenta cuántos productos hay en total y cuántos han sido evaluados *(rates)*. Luego calcula *(evaluados / total) x 100*.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_porcentaje_productos_evaluados()
+RETURNS DECIMAL(5,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_total_productos INT;
+    DECLARE v_productos_evaluados INT;
+    DECLARE v_porcentaje DECIMAL(5,2);
+    
+    SELECT COUNT(*) INTO v_total_productos FROM products;
+    
+    SELECT COUNT(DISTINCT product_id) INTO v_productos_evaluados 
+    FROM quality_products;
+    
+    SET v_porcentaje = (v_productos_evaluados * 100.0) / v_total_productos;
+    
+    RETURN IFNULL(v_porcentaje, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT fn_porcentaje_productos_evaluados() AS '% ProductosEvaluados';
 ```
-Ver el promedio de rating por encuesta
-```sql
 
+14.3 Ver el promedio de rating por encuesta.
+🔍 Explicación: Agrupa por *poll_id* en *rates*, y calcula el *AVG(rating)* para ver cómo se comportó cada encuesta.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_promedio_rating_encuesta(p_poll_id INT)
+RETURNS VARCHAR(20)
+DETERMINISTIC
+BEGIN
+    DECLARE v_promedio DECIMAL(3,2);
+    DECLARE v_count INT;
+    
+    SELECT COUNT(*) INTO v_count FROM rates WHERE poll_id = p_poll_id;
+    
+    IF v_count = 0 THEN
+        RETURN 'Sin datos';
+    ELSE
+        SELECT AVG(rating) INTO v_promedio FROM rates WHERE poll_id = p_poll_id;
+        RETURN CONCAT(ROUND(v_promedio, 2), ' (', v_count, ' ratings)');
+    END IF;
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT p.name AS Encuesta,
+fn_promedio_rating_encuesta(p.id) AS 'Promedio de Rating'
+FROM polls p
+ORDER BY p.id;
 ```
-Calcular el promedio y total de beneficios por plan
-```sql
 
+15.3 Calcular el promedio y total de beneficios por plan.
+🔍 Explicación: Agrupa por *membership_id* en *membershipbenefits*, y usa *COUNT(*)* y *AVG(beneficio)* si aplica (si hay ponderación).
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_total_beneficios_plan(p_membership_id INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total INT;
+    
+    SELECT COUNT(*) INTO v_total
+    FROM membershipbenefits
+    WHERE membership_id = p_membership_id;
+    
+    RETURN IFNULL(v_total, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT m.name AS Plan,
+COUNT(mb.benefit_id) AS TotalBeneficios,
+AVG(b.id) AS PromedioBeneficios
+FROM memberships m
+LEFT JOIN membershipbenefits mb ON m.id = mb.membership_id
+LEFT JOIN benefits b ON mb.benefit_id = b.id
+GROUP BY m.id, m.name
+ORDER BY TotalBeneficios DESC;
 ```
-Obtener media y varianza de precios por empresa
-```sql
 
+16.3 Obtener media y varianza de precios por empresa.
+🔍 Explicación: Se agrupa por *company_id* y se usa *AVG(price)* y *VARIANCE(price)* para saber qué tan consistentes son los precios por empresa.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_varianza_precios_empresa(p_company_id VARCHAR(20))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_varianza DECIMAL(10,2);
+    
+    SELECT VARIANCE(price) INTO v_varianza
+    FROM companyproducts
+    WHERE company_id = p_company_id;
+    
+    RETURN IFNULL(v_varianza, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT em.name AS NombreEmpresa,
+COUNT(cp.product_id) AS CantidadProductos, ROUND(AVG(cp.price), 2) AS MediaPrecios, ROUND(VARIANCE(cp.price), 2) AS VarianzaPrecios
+FROM companies em
+LEFT JOIN companyproducts cp ON em.id = cp.company_id
+GROUP BY em.id, em.name
+HAVING COUNT(cp.product_id) > 1
+ORDER BY VarianzaPrecios DESC;
 ```
-Ver total de productos disponibles en la ciudad del cliente
-```sql
 
+17.3 Ver total de productos disponibles en la ciudad del cliente.
+🔍 Explicación: Hace un *JOIN* entre *companies*, *companyproducts* y *citiesormunicipalities*, filtrando por la ciudad del cliente. Luego se cuenta.
+
+```sql
+DELIMITER //
+CREATE FUNCTION fn_total_productos_ciudad_cliente(p_customer_id INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE v_total INT;
+    DECLARE v_city_code VARCHAR(10);
+    
+    -- Obtener la ciudad del cliente
+    SELECT city_id INTO v_city_code
+    FROM customers
+    WHERE id = p_customer_id;
+    
+    -- Contar productos disponibles en esa ciudad
+    SELECT COUNT(DISTINCT cp.product_id) INTO v_total
+    FROM companyproducts cp
+    JOIN companies c ON cp.company_id = c.id
+    WHERE c.city_id = v_city_code
+    AND cp.available_product = TRUE;
+    
+    RETURN IFNULL(v_total, 0);
+END //
+DELIMITER ;
+
+-- Uso de la función:
+SELECT cu.name AS Cliente,
+com.name AS CiudadCliente,
+COUNT(DISTINCT cp.product_id) AS ProductosDisponibles,
+IFNULL(GROUP_CONCAT(DISTINCT pro.name SEPARATOR ', '), 'No disponible en ciudad') AS ListaProductos
+FROM customers cu
+LEFT JOIN citiesormunicipalities com ON cu.city_id = com.code
+LEFT JOIN companies c ON com.code = c.city_id
+LEFT JOIN companyproducts cp ON c.id = cp.company_id AND cp.available_product = TRUE
+LEFT JOIN products pro ON cp.product_id = pro.id
+GROUP BY cu.id, cu.name, com.name;
 ```
-Contar productos únicos por tipo de empresa
-```sql
 
+18.3 Contar productos únicos por tipo de empresa.
+🔍 Explicación: Agrupa por *company_type_id* y cuenta cuántos productos diferentes tiene cada tipo de empresa.
+
+```sql
+DELIMITER //
+
+CREATE FUNCTION count_unique_products_by_company_type() 
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE result TEXT DEFAULT '';
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE c_type VARCHAR(100);
+    DECLARE p_count INT;
+    DECLARE cur CURSOR FOR 
+        SELECT 
+            ct.name,
+            COUNT(DISTINCT cp.product_id)
+        FROM 
+            company_types ct
+        JOIN 
+            companies c ON ct.id = c.typecompany_id
+        JOIN 
+            companyproducts cp ON c.id = cp.company_id
+        GROUP BY 
+            ct.id, ct.name;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    OPEN cur;
+    
+    read_loop: LOOP
+        FETCH cur INTO c_type, p_count;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        IF result = '' THEN
+            SET result = CONCAT(c_type, ': ', p_count, ' products');
+        ELSE
+            SET result = CONCAT(result, '; ', c_type, ': ', p_count, ' products');
+        END IF;
+    END LOOP;
+    
+    CLOSE cur;
+    
+    RETURN result;
+END //
+
+DELIMITER ;
+
+-- Uso de la función:
+SELECT ct.name AS 'Tipo de Empresa',
+COUNT(DISTINCT cp.product_id) AS CantidadProductos
+FROM company_types ct
+JOIN companies c ON ct.id = c.typecompany_id
+JOIN companyproducts cp ON c.id = cp.company_id
+GROUP BY ct.id, ct.name
+ORDER BY COUNT(DISTINCT cp.product_id) DESC;
 ```
-Ver total de clientes sin correo electrónico registrado
-```sql
 
+19.3 Ver total de clientes sin correo electrónico registrado.
+🔍 Explicación: Filtra *customers WHERE email IS NULL* y hace un *COUNT(*)*. Esto ayuda a mejorar la base de datos para campañas.
+
+```sql
+DELIMITER //
+
+CREATE FUNCTION count_customers_without_email() 
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE total INT;
+    
+    SELECT COUNT(*) INTO total
+    FROM customers
+    WHERE email IS NULL OR email = '';
+    
+    RETURN total;
+END //
+
+DELIMITER ;
+
+-- Uso de la función:
+SELECT count_customers_without_email() AS 'Cantidad de clientes sin email';
 ```
-Empresa con más productos calificados
-```sql
 
+20.3 Empresa con más productos calificados.
+🔍 Explicación: Hace un *JOIN* entre *companies*, *companyproducts*, y *rates*, agrupa por empresa y usa *COUNT(DISTINCT product_id)*, ordenando en orden descendente y tomando solo el primero.
+
+```sql
+DELIMITER //
+
+CREATE FUNCTION get_company_with_most_rated_products() 
+RETURNS VARCHAR(255)
+DETERMINISTIC
+BEGIN
+    DECLARE result VARCHAR(255);
+    
+    SELECT CONCAT(name, ' (', COUNT(DISTINCT product_id), ' productos calificados)') INTO result
+    FROM companies c
+    JOIN quality_products qp ON c.id = qp.company_id
+    GROUP BY c.id, c.name
+    ORDER BY COUNT(DISTINCT product_id) DESC
+    LIMIT 1;
+    
+    RETURN result;
+END //
+
+DELIMITER ;
+
+-- Uso de la función:
+SELECT em.name AS Empresa,
+COUNT(DISTINCT qp.product_id) AS ProductosCalificados
+FROM companies em
+JOIN quality_products qp ON em.id = qp.company_id
+GROUP BY em.id, em.name
+ORDER BY COUNT(DISTINCT qp.product_id) DESC
+LIMIT 1;
 ```
 
 ### 4. Procedimientos Almacenados:
@@ -793,321 +1335,364 @@ Eliminar productos sin relación a empresas
 
 ### 6. Events:
 
-Borrar productos sin actividad cada 6 meses
+01.6 Borrar productos sin actividad cada 6 meses
 ```sql
 
 ```
-Recalcular el promedio de calificaciones semanalmente
+02.6 Recalcular el promedio de calificaciones semanalmente
 ```sql
 
 ```
-Actualizar precios según inflación mensual
+03.6 Actualizar precios según inflación mensual
 ```sql
 
 ```
-Crear backups lógicos diariamente
+04.6 Crear backups lógicos diariamente
 ```sql
 
 ```
-Notificar sobre productos favoritos sin calificar
+05.6 Notificar sobre productos favoritos sin calificar
 ```sql
 
 ```
-Revisar inconsistencias entre empresa y productos
+06.6 Revisar inconsistencias entre empresa y productos
 ```sql
 
 ```
-Archivar membresías vencidas diariamente
+07.6 Archivar membresías vencidas diariamente
 ```sql
 
 ```
-Notificar beneficios nuevos a usuarios semanalmente
+08.6 Notificar beneficios nuevos a usuarios semanalmente
 ```sql
 
 ```
-Calcular cantidad de favoritos por cliente mensualmente
+09.6 Calcular cantidad de favoritos por cliente mensualmente
 ```sql
 
 ```
-Validar claves foráneas semanalmente
+10.6 Validar claves foráneas semanalmente
 ```sql
 
 ```
-Eliminar calificaciones inválidas antiguas
+11.6 Eliminar calificaciones inválidas antiguas
 ```sql
 
 ```
-Cambiar estado de encuestas inactivas automáticamente
+12.6 Cambiar estado de encuestas inactivas automáticamente
 ```sql
 
 ```
-Registrar auditorías de forma periódica
+13.6 Registrar auditorías de forma periódica
 ```sql
 
 ```
-Notificar métricas de calidad a empresas
+14.6 Notificar métricas de calidad a empresas
 ```sql
 
 ```
-Recordar renovación de membresías
+15.6 Recordar renovación de membresías
 ```sql
 
 ```
-Reordenar estadísticas generales cada semana
+16.6 Reordenar estadísticas generales cada semana
 ```sql
 
 ```
-Crear resúmenes temporales de uso por categoría
+17.6 Crear resúmenes temporales de uso por categoría
 ```sql
 
 ```
-Actualizar beneficios caducados
+18.6 Actualizar beneficios caducados
 ```sql
 
 ```
-Alertar productos sin evaluación anual
+19.6 Alertar productos sin evaluación anual
 ```sql
 
 ```
-Actualizar precios con índice externo
+20.6 Actualizar precios con índice externo
 ```sql
 
 ```
 
 ### 7. Historias de Usuario con JOINs:
 
- 1.7 Ver productos con la empresa que los vende
+01.7 Ver productos con la empresa que los vende
 ```sql
-SELECT 
-    co.name AS empresa,
-    p.name AS producto,
-    cp.price AS precio
+SELECT em.name AS Empresa,
+pro.name AS Producto,
+cp.price AS Precio
 FROM companyproducts cp
-INNER JOIN companies co ON cp.company_id = co.id
-INNER JOIN products p ON cp.product_id = p.id;
+INNER JOIN companies em ON cp.company_id = em.id
+INNER JOIN products pro ON cp.product_id = pro.id;
 ```
- 2.7 Mostrar productos favoritos con su empresa y categoría
+02.7 Mostrar productos favoritos con su empresa y categoría
 ```sql
-SELECT 
-    p.name AS producto,
-    cat.description AS categoria,
-    c.name AS empresa
+SELECT pro.name AS Producto,
+cat.description AS Categoría,
+em.name AS empresa
 FROM favorites f
 JOIN details_favorites df ON f.id = df.favorite_id
-JOIN products p ON df.product_id = p.id
-JOIN categories cat ON p.category_id = cat.id
-JOIN companyproducts cp ON cp.product_id = p.id
-JOIN companies c ON cp.company_id = c.id;
+JOIN products pro ON df.product_id = pro.id
+JOIN categories cat ON pro.category_id = cat.id
+JOIN companyproducts cp ON cp.product_id = pro.id
+JOIN companies em ON cp.company_id = em.id;
 ```
- 3.7 Ver empresas aunque no tengan productos
+03.7 Ver empresas aunque no tengan productos
 ```sql
-SELECT 
-    C.name AS empresa
-FROM companies c
-LEFT JOIN companyproducts cp ON c.id = cp.company_id
-GROUP BY c.name
+SELECT em.name AS Empresa
+FROM companies em
+LEFT JOIN companyproducts cp ON em.id = cp.company_id
+GROUP BY em.name
 HAVING COUNT(cp.product_id) = 0;
- 4.7 Ver productos que fueron calificados (o no)
-SELECT 
-    p.name AS producto,
-    r.rating
+-- (Empty Set) Todas las empresas tienen productos.
+```
+04.7 Ver productos que fueron calificados (o no)
+```sql
+SELECT pro.name AS Producto,
+r.rating AS Calificación
 FROM quality_products r
-RIGHT JOIN products p ON p.id = r.product_id;
+RIGHT JOIN products pro ON pro.id = r.product_id;
 ```
- 5.7 Ver productos con promedio de calificación y empresa
+05.7 Ver productos con promedio de calificación y empresa
 ```sql
-SELECT 
-    c.name AS empresa,
-    p.name AS producto,
-    AVG(qp.rating) AS promedio
-FROM products p
-JOIN companyproducts cp ON p.id = cp.product_id
-JOIN companies c ON cp.company_id = c.id
-JOIN quality_products qp ON qp.product_id = p.id AND qp.company_id = c.id
-GROUP BY c.name, p.name;
+SELECT em.name AS Empresa,
+pro.name AS Producto,
+AVG(qp.rating) AS PromedioCalificación
+FROM products pro
+JOIN companyproducts cp ON pro.id = cp.product_id
+JOIN companies em ON cp.company_id = em.id
+JOIN quality_products qp ON qp.product_id = pro.id AND qp.company_id = em.id
+GROUP BY em.name, pro.name;
 ```
- 6.7 Ver clientes y sus calificaciones (si las tienen)
+06.7 Ver clientes y sus calificaciones (si las tienen)
 ```sql
-SELECT 
-    cl.name AS cliente,
-    r.rating AS calificacion
+SELECT cl.name AS Cliente,
+r.rating AS calificacion
 FROM customers cl
 LEFT JOIN rates r ON cl.id = r.customer_id;
 ```
- 7.7 Ver favoritos con la última calificación del cliente
+07.7 Ver favoritos con la última calificación del cliente
 ```sql
-SELECT
-    c.name AS nombre_cliente,
-    prod.name AS nombre_producto_fav,
-    comp.name AS empresa,
-    cat.description AS categoria,
-    MAX(r.daterating) AS ultima_calificacion_fecha,
-    r.rating AS calificacion
+SELECT c.name AS Cliente,
+pro.name AS Producto,
+comp.name AS Empresa,
+cat.description AS Categoría,
+MAX(r.daterating) AS FechaCalificación, r.rating AS Calificacion
 FROM customers c
 JOIN favorites fav ON c.id = fav.customer_id
 JOIN details_favorites df ON fav.id = df.favorite_id
-JOIN products prod ON df.product_id = prod.id
-JOIN companyproducts cp ON prod.id = cp.product_id
+JOIN proucts pro ON df.prouct_id = pro.id
+JOIN companyproucts cp ON pro.id = cp.prouct_id
 JOIN companies comp ON cp.company_id = comp.id
-JOIN categories cat ON prod.category_id = cat.id
+JOIN categories cat ON pro.category_id = cat.id
 LEFT JOIN rates r ON c.id = r.customer_id AND comp.id = r.company_id
-GROUP BY fav.id, prod.id, comp.id, r.rating;
+GROUP BY fav.id, pro.id, comp.id, r.rating;
 ```
- 8.7 Ver beneficios incluidos en cada plan de membresía
+08.7 Ver beneficios incluidos en cada plan de membresía
 ```sql
-SELECT
-    m.name AS membresia,
-    m.description AS descripcion,
-    b.description AS beneficions,
-    b.detail AS detalles
+SELECT m.name AS Membresía, m.description AS Descripción,
+b.description AS Beneficio, b.detail AS Detalles
 FROM membershipbenefits msb
 JOIN memberships m ON m.id = msb.membership_id
 JOIN benefits b ON b.id = msb.benefit_id;
 ```
- 9.7 Ver clientes con membresía activa y sus beneficios
+09.7 Ver clientes con membresía activa y sus beneficios
 ```sql
-
+SELECT cu.id AS IdCliente, cu.name AS Cliente,
+m.name AS Membresia,
+b.id AS IdBeneficio, b.description AS DescripcionBeneficio
+FROM customers cu
+JOIN membershipbenefits mb ON cu.audience_id = mb.audience_id
+JOIN memberships m ON mb.membership_id = m.id
+JOIN benefits b ON mb.benefit_id = b.id
+WHERE cu.membership_active = TRUE;
 ```
 10.7 Ver ciudades con cantidad de empresas
 ```sql
-SELECT
-    cm.name AS Ciudad_Municipio,
-    COUNT(c.id) AS Cantidad_Empresas
+SELECT cm.name AS Ciudad,
+COUNT(c.id) AS TotalEmpresas
 FROM citiesormunicipalities cm
 JOIN companies c ON cm.code = c.city_id
 GROUP BY(cm.code);
 ```
 11.7 Ver encuestas con calificaciones
 ```sql
-SELECT
-    p.name AS encuesta,
-    p.description AS descripcion,
-    r.rating AS calificacion
-FROM polls p
-JOIN rates r ON p.id = r.poll_id;
+SELECT po.name AS Encuesta, po.description AS Descripción,
+r.rating AS Calificacion
+FROM polls po
+JOIN rates r ON po.id = r.poll_id;
 ```
 12.7 Ver productos evaluados con datos del cliente
 ```sql
-SELECT 
-    p.name AS producto,
-    c.name AS cliente,
-    qp.daterating AS fecha_evaluacion,
-    qp.rating AS calificacion
+SELECT pro.name AS Producto,
+c.name AS Cliente,
+qp.daterating AS FechaCalificación, qp.rating AS Calificacion
 FROM quality_products qp
-JOIN products p ON qp.product_id = p.id
+JOIN products pro ON qp.product_id = pro.id
 JOIN customers c ON qp.customer_id = c.id;
 ```
 13.7 Ver productos con audiencia de la empresa
 ```sql
-SELECT 
-    p.name AS producto,
-    c.name AS empresa,
-    a.description AS audiencia_objetivo
-FROM products p
-JOIN companyproducts cp ON p.id = cp.product_id
-JOIN companies c ON cp.company_id = c.id
-JOIN audiences a ON c.audience_id = a.id;
+SELECT pro.name AS Producto,
+em.name AS Empresa,
+a.description AS DescripcioónAudiencia
+FROM products pro
+JOIN companyproducts cp ON pro.id = cp.product_id
+JOIN companies em ON cp.company_id = em.id
+JOIN audiences a ON em.audience_id = a.id;
 ```
 14.7 Ver clientes con sus productos favoritos
 ```sql
-SELECT 
-    c.name AS cliente,
-    p.name AS producto_favorito
+SELECT c.name AS Cliente,
+pro.name AS Producto
 FROM customers c
 JOIN favorites f ON f.customer_id = c.id
 JOIN details_favorites df ON df.favorite_id = f.id
-JOIN products p ON df.product_id = p.id;
+JOIN products pro ON df.product_id = pro.id;
 ```
 15.7 Ver planes, periodos, precios y beneficios
 ```sql
-SELECT
-    m.name AS membresia,
-    p.name AS periodo,
-    b.description AS beneficio,
-    b.detail AS detalle_beneficio
+SELECT m.name AS Membresía,
+pe.name AS Período,
+b.description AS Beneficio, b.detail AS DetalleBeneficio
 FROM membershipbenefits msb
 JOIN memberships m ON m.id = msb.membership_id
 JOIN benefits b ON b.id = msb.benefit_id
-JOIN periods p ON p.id = msb.period_id;
+JOIN periods pe ON pe.id = msb.period_id;
 ```
 16.7 Ver combinaciones empresa-producto-cliente calificados
 ```sql
-SELECT 
-    cu.name AS cliente,
-    p.name AS producto,
-    c.name AS empresa,
-    qp.rating AS calificacion
+SELECT c.name AS Cliente,
+pro.name AS Producto,
+em.name AS Empresa,
+qp.rating AS calificacion
 FROM quality_products qp
-JOIN products p ON qp.product_id = p.id
-JOIN companies c ON qp.company_id = c.id
-JOIN customers cu ON qp.customer_id = cu.id;
+JOIN products pro ON qp.product_id = pro.id
+JOIN companies em ON qp.company_id = em.id
+JOIN customers c ON qp.customer_id = c.id;
 ```
 17.7 Comparar favoritos con productos calificados
 ```sql
-SELECT
-    f.customer_id,
-    p.name AS producto,
-    qp.rating AS calificacion,
-    qp.daterating AS fecha
+SELECT f.customer_id AS IdCliente,
+pro.name AS Producto,
+qp.rating AS Calificación,
+qp.daterating AS Fecha
 FROM favorites f
 JOIN details_favorites df ON f.id = df.favorite_id
-JOIN products p ON df.product_id = p.id
-JOIN quality_products qp ON qp.product_id = p.id AND qp.customer_id = f.customer_id
+JOIN products pro ON df.product_id = pro.id
+JOIN quality_products qp ON qp.product_id = pro.id AND qp.customer_id = f.customer_id
 WHERE f.customer_id = 1
-ORDER BY fecha DESC;
+ORDER BY Fecha DESC;
 ```
 18.7 Ver productos ordenados por categoría
 ```sql
-SELECT
-    p.name AS producto,
-    c.description AS categoria
-FROM products p
-JOIN categories c ON c.id = category_id;
+SELECT pro.name AS Producto,
+cat.description AS Categoría
+FROM products pro
+JOIN categories cat ON cat.id = pro.category_id;
 ```
 19.7 Ver beneficios por audiencia, incluso vacíos
 ```sql
-SELECT 
-    a.description AS audiencia,
-    b.description AS beneficio,
-    b.detail AS detalle
+SELECT a.description AS Audiencia,
+b.description AS DescripciónBeneficio, b.detail AS Detalle
 FROM audiences a
 LEFT JOIN audiencebenefits ab ON a.id = ab.audience_id
 LEFT JOIN benefits b ON ab.benefit_id = b.id;
 ```
 20.7 Ver datos cruzados entre calificaciones, encuestas, productos y clientes
 ```sql
-SELECT 
-    cu.name AS cliente,
-    p.name AS producto,
-    c.name AS empresa,
-    poll.name AS encuesta,
-    qp.rating AS calificacion,
-    qp.daterating AS fecha
+SELECT c.name AS Cliente,
+pro.name AS Producto,
+em.name AS Empresa,
+po.name AS Encuesta,
+qp.rating AS Calificación, qp.daterating AS Fecha
 FROM quality_products qp
-JOIN products p ON qp.product_id = p.id
-JOIN polls poll ON qp.poll_id = poll.id
-JOIN companies c ON qp.company_id = c.id
-JOIN customers cu ON qp.customer_id = cu.id;
+JOIN products pro ON qp.product_id = pro.id
+JOIN polls po ON qp.poll_id = po.id
+JOIN companies em ON qp.company_id = em.id
+JOIN customers c ON qp.customer_id = c.id;
 ```
 
 ### 8. Historias de Usuario con Funciones Definidas por el Usuario (UDF):
-Como analista, quiero una función que calcule el promedio ponderado de calidad de un producto basado en sus calificaciones y fecha de evaluación.
-Como auditor, deseo una función que determine si un producto ha sido calificado recientemente (últimos 30 días).
-Como desarrollador, quiero una función que reciba un product_id y devuelva el nombre completo de la empresa que lo vende.
-Como operador, deseo una función que, dado un customer_id, me indique si el cliente tiene una membresía activa.
-Como administrador, quiero una función que valide si una ciudad tiene más de X empresas registradas, recibiendo la ciudad y el número como parámetros.
-Como gerente, deseo una función que, dado un rate_id, me devuelva una descripción textual de la calificación (por ejemplo, “Muy bueno”, “Regular”).
-Como técnico, quiero una función que devuelva el estado de un producto en función de su evaluación (ej. “Aceptable”, “Crítico”).
-Como cliente, deseo una función que indique si un producto está entre mis favoritos, recibiendo el product_id y mi customer_id.
-Como gestor de beneficios, quiero una función que determine si un beneficio está asignado a una audiencia específica, retornando verdadero o falso.
-Como auditor, deseo una función que reciba una fecha y determine si se encuentra dentro de un rango de membresía activa.
-Como desarrollador, quiero una función que calcule el porcentaje de calificaciones positivas de un producto respecto al total.
-Como supervisor, deseo una función que calcule la edad de una calificación, en días, desde la fecha actual.
-Como operador, quiero una función que, dado un company_id, devuelva la cantidad de productos únicos asociados a esa empresa.
-Como gerente, deseo una función que retorne el nivel de actividad de un cliente (frecuente, esporádico, inactivo), según su número de calificaciones.
-Como administrador, quiero una función que calcule el precio promedio ponderado de un producto, tomando en cuenta su uso en favoritos.
-Como técnico, deseo una función que me indique si un benefit_id está asignado a más de una audiencia o membresía (valor booleano).
-Como cliente, quiero una función que, dada mi ciudad, retorne un índice de variedad basado en número de empresas y productos.
-Como gestor de calidad, deseo una función que evalúe si un producto debe ser desactivado por tener baja calificación histórica.
-Como desarrollador, quiero una función que calcule el índice de popularidad de un producto (combinando favoritos y ratings).
-Como auditor, deseo una función que genere un código único basado en el nombre del producto y su fecha de creación.
+01.8 Como analista, quiero una función que calcule el promedio ponderado de calidad de un producto basado en sus calificaciones y fecha de evaluación.
+```sql
+
+```
+02.8 Como auditor, deseo una función que determine si un producto ha sido calificado recientemente (últimos 30 días).
+```sql
+
+```
+03.8 Como desarrollador, quiero una función que reciba un *product_id* y devuelva el nombre completo de la empresa que lo vende.
+```sql
+
+```
+04.8 Como operador, deseo una función que, dado un *customer_id*, me indique si el cliente tiene una membresía activa.
+```sql
+
+```
+05.8 Como administrador, quiero una función que valide si una ciudad tiene más de X empresas registradas, recibiendo la ciudad y el número como parámetros.
+```sql
+
+```
+06.8 Como gerente, deseo una función que, dado un rate_id, me devuelva una descripción textual de la calificación (por ejemplo, “Muy bueno”, “Regular”).
+```sql
+
+```
+07.8 Como técnico, quiero una función que devuelva el estado de un producto en función de su evaluación (ej. “Aceptable”, “Crítico”).
+```sql
+
+```
+08.8 Como cliente, deseo una función que indique si un producto está entre mis favoritos, recibiendo el *product_id* y mi *customer_id*.
+```sql
+
+```
+09.8 Como gestor de beneficios, quiero una función que determine si un beneficio está asignado a una audiencia específica, retornando verdadero o falso.
+```sql
+
+```
+10.8 Como auditor, deseo una función que reciba una fecha y determine si se encuentra dentro de un rango de membresía activa.
+```sql
+
+```
+11.8 Como desarrollador, quiero una función que calcule el porcentaje de calificaciones positivas de un producto respecto al total.
+```sql
+
+```
+12.8 Como supervisor, deseo una función que calcule la edad de una calificación, en días, desde la fecha actual.
+```sql
+
+```
+13.8 Como operador, quiero una función que, dado un company_id, devuelva la cantidad de productos únicos asociados a esa empresa.
+```sql
+
+```
+14.8 Como gerente, deseo una función que retorne el nivel de actividad de un cliente (frecuente, esporádico, inactivo), según su número de calificaciones.
+```sql
+
+```
+15.8 Como administrador, quiero una función que calcule el precio promedio ponderado de un producto, tomando en cuenta su uso en favoritos.
+```sql
+
+```
+16.8 Como técnico, deseo una función que me indique si un *benefit_id* está asignado a más de una audiencia o membresía (valor booleano).
+```sql
+
+```
+17.8 Como cliente, quiero una función que, dada mi ciudad, retorne un índice de variedad basado en número de empresas y productos.
+```sql
+
+```
+18.8 Como gestor de calidad, deseo una función que evalúe si un producto debe ser desactivado por tener baja calificación histórica.
+```sql
+
+```
+19.8 Como desarrollador, quiero una función que calcule el índice de popularidad de un producto (combinando favoritos y ratings).
+```sql
+
+```
+20.8 Como auditor, deseo una función que genere un código único basado en el nombre del producto y su fecha de creación.
+```sql
+
+```
