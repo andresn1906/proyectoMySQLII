@@ -1554,10 +1554,16 @@ INSERT INTO membershipbenefits (membership_id, period_id, benefit_id, audience_i
 (1, 2, 2, 2),
 (2, 1, 3, 3);
 
-INSERT INTO companies (id, type_id, name, category_id, city_id, audience_id, cellphone, email) VALUES
-('COMP1', 1, 'Supermercado S.A.', 2, '05001', 1, '3101234567', 'supermarket@empresa.com'),
-('COMP2', 3, 'Tech Solutions', 3, 'US36001', 2, '3207654321', 'tech@soluciones.com'),
-('COMP3', 1, 'Restaurante Gourmet', 1, '11001', 3, '3158889999', 'gourmet@restaurante.com');
+INSERT INTO company_types (name, description) VALUES 
+('Minorista', 'Empresas que venden directamente al consumidor final'),
+('Mayorista', 'Empresas que venden a otras empresas en grandes cantidades'),
+('Fabricante', 'Empresas que producen sus propios productos'),
+('Servicios', 'Empresas que ofrecen servicios en lugar de productos físicos');
+
+INSERT INTO companies (id, type_id, name, category_id, city_id, audience_id, cellphone, email, typecompany_id) VALUES
+('COMP1', 1, 'Supermercado S.A.', 2, '05001', 1, '3101234567', 'supermarket@empresa.com', 1),
+('COMP2', 3, 'Tech Solutions', 3, 'US36001', 2, '3207654321', 'tech@soluciones.com', 2),
+('COMP3', 1, 'Restaurante Gourmet', 1, '11001', 3, '3158889999', 'gourmet@restaurante.com', 3);
 
 INSERT INTO products (name, detail, price, category_id, image, unitofmeasure_id) VALUES
 ('Arroz Premium', 'Arroz de grano largo premium', 15000, 2, 'arroz.jpg', 2),
@@ -1569,15 +1575,15 @@ INSERT INTO products (name, detail, price, category_id, image, unitofmeasure_id)
 ('Aceite Vegetal', 'Aceite vegetal 1 litro', 8000, 2, 'aceite.jpg', 3),
 ('Sal Marina', 'Sal natural sin refinar', 3000, 2, 'sal.jpg', 2);
 
-INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id) VALUES
-('COMP1', 1, 14000, 2),
-('COMP1', 4, 4800, 1),
-('COMP2', 2, 5490000, 1),
-('COMP3', 3, 32000, 1),
-('COMP1', 5, 5800, 2),
-('COMP1', 6, 4300, 1),
-('COMP1', 7, 7900, 1),
-('COMP1', 8, 2800, 1);
+INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id, available_product) VALUES
+('COMP1', 1, 14000, 2, 1),
+('COMP1', 4, 4800, 1, 1),
+('COMP2', 2, 5490000, 1, 0),
+('COMP3', 3, 32000, 1, 1),
+('COMP1', 5, 5800, 2, 0),
+('COMP1', 6, 4300, 1, 0),
+('COMP1', 7, 7900, 1, 1),
+('COMP3', 8, 2800, 1, 1);
 
 INSERT INTO customers (name, city_id, audience_id, cellphone, email, membership_active) VALUES
 ('Andrés Suárez', '05001', 1, '3138430142', 'andresuarez@mail.com', 1),
@@ -1587,7 +1593,12 @@ INSERT INTO customers (name, city_id, audience_id, cellphone, email, membership_
 INSERT INTO quality_products (product_id, customer_id, poll_id, company_id, daterating, rating) VALUES
 (1, 1, 2, 'COMP1', NOW(), 4.5),
 (2, 3, 1, 'COMP2', NOW(), 4.8),
-(3, 2, 1, 'COMP3', NOW(), 4.2);
+(3, 2, 1, 'COMP3', NOW(), 4.2),
+(4, 1, 2, 'COMP1', NOW(), 4.2),
+(5, 2, 2, 'COMP1', NOW(), 4.3),
+(6, 3, 2, 'COMP1', NOW(), 4.5),
+(7, 1, 2, 'COMP1', NOW(), 4.0),
+(8, 2, 2, 'COMP3', NOW(), 4.7);
 
 INSERT INTO favorites (customer_id, company_id) VALUES
 (1, 'COMP1'),
