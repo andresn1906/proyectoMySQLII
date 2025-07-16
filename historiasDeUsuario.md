@@ -1169,85 +1169,731 @@ LIMIT 1;
 
 ### 4. Procedimientos Almacenados:
 
-Registrar una nueva calificación y actualizar el promedio
-```sql
+01.4 Registrar una nueva calificación y actualizar el promedio.
+🧠 Explicación: Este procedimiento recibe *product_id*, *customer_id* y *rating*, inserta la nueva fila en rates, y recalcula automáticamente el promedio en la tabla products (campo *average_rating*).
 
+```sql
+DELIMITER //
+
+CREATE PROCEDURE sp_simple_register_rating(
+    IN p_product_id INT,
+    IN p_customer_id INT,
+    IN p_rating DECIMAL(3,1))
+BEGIN
+    DECLARE v_company_id VARCHAR(20);
+    DECLARE v_avg_rating DECIMAL(3,2);
+    
+    SELECT company_id INTO v_company_id 
+    FROM companyproducts 
+    WHERE product_id = p_product_id 
+    LIMIT 1;
+    
+    IF p_rating < 1 OR p_rating > 5 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'La calificación debe estar entre 1 y 5';
+    END IF;
+    
+    INSERT INTO quality_products (
+        product_id, customer_id, poll_id, 
+        company_id, daterating, rating
+    ) VALUES (
+        p_product_id, p_customer_id, 1,
+        v_company_id, NOW(), p_rating
+    )
+    ON DUPLICATE KEY UPDATE
+        rating = VALUES(rating),
+        daterating = NOW();
+    
+    SELECT ROUND(AVG(rating), 2) INTO v_avg_rating
+    FROM quality_products 
+    WHERE product_id = p_product_id;
+    
+    SELECT p_product_id AS IdProducto,
+    v_avg_rating AS PromedioCalificación,
+    'Calificación registrada' AS Mensaje;
+END //
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL sp_simple_register_rating(1, 1, 4.5); 
 ```
-Insertar empresa y asociar productos por defecto
-```sql
 
+02.4 Insertar empresa y asociar productos por defecto.
+🧠 Explicación: Este procedimiento inserta una empresa en *companies*, y luego vincula automáticamente productos predeterminados en *companyproducts*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE Insertar_empresaConProductos (
+    IN p_id VARCHAR(20),
+    IN p_type_id INT,
+    IN p_name VARCHAR(80),
+    IN p_category_id INT,
+    IN p_city_id VARCHAR(10),
+    IN p_audience_id INT,
+    IN p_cellphone VARCHAR(15),
+    IN p_email VARCHAR(80),
+    IN p_typecompany_id INT
+)
+BEGIN
+    INSERT INTO companies (id, type_id, name, category_id, city_id, audience_id, cellphone, email, typecompany_id) VALUES (
+    p_id, p_type_id, p_name, p_category_id, p_city_id, p_audience_id, p_cellphone, p_email, p_typecompany_id);
+
+    INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id, available_product)
+    SELECT p_id,                 
+    pr.id, pr.price, pr.unitofmeasure_id, 
+    TRUE                  
+    FROM products pr;
+    
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL Insertar_empresaConProductos ('COMP4', 4, 'Claro', 3, '05001', 2, '3003202991', 'claro@gmail.com', 1);
+
+-- Revisar INSERT:
+SELECT * 
+FROM companies 
+WHERE id = 'COMP4';
+
+SELECT cp.company_id AS CompañíaNueva,
+pro.name AS Producto, u.description AS UnidadDeMedida
+FROM companyproducts cp
+JOIN products pro ON cp.product_id = pro.id
+JOIN unitofmeasure u ON cp.unitmeasure_id = u.id
+WHERE cp.company_id = 'COMP4';
 ```
-Añadir producto favorito validando duplicados
-```sql
 
+03.4 Añadir producto favorito validando duplicados.
+🧠 Explicación: Verifica si el producto ya está en favoritos (*details_favorites*). Si no lo está, lo inserta. Evita duplicaciones silenciosamente.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ProductoFavorito (
+    IN p_favorite_id INT,
+    IN p_product_id INT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM details_favorites
+        WHERE favorite_id = p_favorite_id
+        AND product_id = p_product_id
+    ) THEN
+        INSERT INTO details_favorites (favorite_id, product_id)
+        VALUES (p_favorite_id, p_product_id);
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ProductoFavorito (1, 5);
+
+-- Revisar INSERT:
+SELECT * 
+FROM details_favorites df
+WHERE favorite_id = 1 AND product_id = 5;
+
+SELECT * 
+FROM details_favorites df;
 ```
-Generar resumen mensual de calificaciones por empresa
-```sql
 
+04.4 Generar resumen mensual de calificaciones por empresa.
+🧠 Explicación: Hace una consulta agregada con *AVG(rating)* por empresa, y guarda los resultados en una tabla de resumen tipo *resumen_calificaciones*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ResumenCalificacionesMensual (
+    IN p_anio INT,
+    IN p_mes INT
+)
+BEGIN
+    DELETE FROM resumen_calificaciones
+    WHERE año = p_anio AND mes = p_mes;
+
+    INSERT INTO resumen_calificaciones (company_id, Año, Mes, promedio_calificacion)
+    SELECT company_id AS IdEmpresa,
+    p_anio AS Año, p_mes AS Mes,
+    AVG(rating) AS promedio_calificacion
+    FROM quality_products
+    WHERE YEAR(daterating) = p_anio AND MONTH(daterating) = p_mes
+    GROUP BY company_id;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+SELECT company_id, daterating, rating -- Verificar datos como fecha (año y mes) 
+FROM quality_products 
+LIMIT 10;
+
+CALL ResumenCalificacionesMensual (2025, 7);
+
+SELECT em.name AS Empresa,
+r.año AS Año, r.mes AS Mes, r.promedio_calificacion AS PromedioCalificacion
+FROM resumen_calificaciones r
+JOIN companies em ON r.company_id = em.id
+ORDER BY r.año DESC, r.mes DESC;
 ```
-Calcular beneficios activos por membresía
-```sql
 
+05.4 Calcular beneficios activos por membresía.
+🧠 Explicación: Consulta *membershipbenefits* junto con *membershipperiods*, y devuelve una lista de beneficios vigentes según la fecha actual.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE BeneficioasActivos ()
+BEGIN
+    SELECT mb.membership_id AS IdMembresía,
+    m.name AS Membresía,
+    b.description AS TipoBeneficio, b.detail AS DetalleBeneficio,
+    a.description AS Audiencia,
+    p.name AS Periodo
+    FROM membershipbenefits mb
+    JOIN memberships m ON mb.membership_id = m.id
+    JOIN benefits b ON mb.benefit_id = b.id
+    JOIN audiences a ON mb.audience_id = a.id
+    JOIN periods p ON mb.period_id = p.id
+    JOIN membershipperiods mp ON mb.membership_id = mp.membership_id AND mb.period_id = mp.period_id
+    ORDER BY mb.membership_id, b.id;
+END$$
+
+DELIMITER ;
+
+-- uso con CALL:
+CALL BeneficioasActivos ();
 ```
-Eliminar productos huérfanos
-```sql
 
+06.4 Eliminar productos huérfanos.
+🧠 Explicación: Elimina productos de la tabla *products* que no tienen relación ni en *rates* ni en *companyproducts*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE EliminarProductosHuerfanos()
+BEGIN
+    DELETE FROM products
+    WHERE id NOT IN (SELECT DISTINCT product_id FROM companyproducts)
+      AND id NOT IN (SELECT DISTINCT product_id FROM quality_products);
+END$$
+
+DELIMITER ;
+
+-- uso con CALL:
+CALL EliminarProductosHuerfanos();
+
+-- Revisar PROCEDURE:
+SELECT * 
+FROM products pro   
+WHERE id NOT IN (SELECT product_id FROM companyproducts) AND id NOT IN (SELECT product_id FROM quality_products);
+-- (Empty set) Todos los productos tienen relación con *rates* y *companyproducts*.
 ```
-Actualizar precios de productos por categoría
-```sql
 
+07.4 Actualizar precios de productos por categoría
+🧠 Explicación: Recibe un *categoria_id* y un factor (por ejemplo 1.05), y multiplica todos los precios por ese factor en la tabla *companyproducts*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ActualizarPrecios (
+    IN p_categoria_id INT,
+    IN p_factor DECIMAL(5,2),
+    IN p_usuario VARCHAR(50)
+)
+BEGIN
+    INSERT INTO cambios_precios (
+    producto_id, empresa_id,
+    precio_anterior, precio_nuevo,
+    categoria_id, factor, usuario
+    )
+    SELECT cp.product_id, cp.company_id, cp.price,
+    cp.price * p_factor, 
+    p.category_id, p_factor, p_usuario
+    FROM companyproducts cp
+    JOIN products p ON cp.product_id = p.id
+    WHERE p.category_id = p_categoria_id;
+
+    UPDATE companyproducts cp
+    JOIN products p ON cp.product_id = p.id
+    SET cp.price = cp.price * p_factor
+    WHERE p.category_id = p_categoria_id;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ActualizarPrecios(1, 1.15, 'admin');
+
+-- Verificar INSERTS:
+SELECT * 
+FROM cambios_precios 
+ORDER BY fecha_cambio DESC;
 ```
-Validar inconsistencia entre rates y quality_products
-```sql
 
+08.4 Validar inconsistencia entre rates y quality_products.
+🧠 Explicación: Busca calificaciones (*rates*) que no tengan entrada correspondiente en *quality_products*. Inserta el error en una tabla *errores_log*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ValidarInconsistencia ()
+BEGIN
+    INSERT INTO errores_log (
+        tipo_error,
+        descripcion,
+        entidad_origen,
+        id_origen
+    )
+    SELECT 
+        'Inconsistencia: rate sin quality',
+        CONCAT('No existe en quality_products la calificación de cliente ', r.customer_id,
+        ', empresa ', r.company_id,
+        ', encuesta ', r.poll_id),
+        'rates',
+        NULL
+    FROM rates r
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM quality_products qp
+        WHERE qp.customer_id = r.customer_id AND qp.company_id = r.company_id AND qp.poll_id = r.poll_id
+    );
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ValidarInconsistencia();
+
+-- Verificar INSERTS:
+SELECT * 
+FROM errores_log 
+ORDER BY fecha_error DESC;
+-- (Empty Set) No hay registros huérfanos, es decir, todos los *rates* tienen entrada en *quality_products*.
 ```
-Asignar beneficios a nuevas audiencias
-```sql
 
+09.4 Asignar beneficios a nuevas audiencias.
+🧠 Explicación: Recibe un *benefit_id* y *audience_id*, verifica si ya existe el registro, y si no, lo inserta en *audiencebenefits*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE AsignarBeneficio (
+    IN p_benefit_id INT,
+    IN p_audience_id INT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM audiencebenefits
+        WHERE benefit_id = p_benefit_id
+          AND audience_id = p_audience_id
+    ) THEN
+        INSERT INTO audiencebenefits (benefit_id, audience_id)
+        VALUES (p_benefit_id, p_audience_id);
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL AsignarBeneficio(1, 1);
+
+-- Verificar INSERTS:
+SELECT * 
+FROM audiencebenefits
 ```
-Activar planes de membresía vencidos con pago confirmado
-```sql
 
+10.4 Activar planes de membresía vencidos con pago confirmado.
+🧠 Explicación: Actualiza el campo *status* a '*ACTIVA*' en *membershipperiods* donde la fecha haya vencido pero el campo *pago_confirmado* sea *TRUE*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ActivarMembresiasVencidasConPago()
+BEGIN
+    UPDATE membershipperiods
+    SET status = 'ACTIVA'
+    WHERE fecha_fin < CURDATE()
+      AND pago_confirmado = TRUE
+      AND (status IS NULL OR status <> 'ACTIVA');
+
+    SELECT ROW_COUNT() AS membresias_activadas;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ActivarMembresiasVencidasConPago();
 ```
-Listar productos favoritos del cliente con su calificación
-```sql
 
+11.4 Listar productos favoritos del cliente con su calificación.
+🧠 Explicación: Consulta todos los productos favoritos del cliente y muestra el promedio de calificación de cada uno, uniendo *favorites*, *rates* y *products*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ListarProductosFavoritosConCalificacion (
+    IN p_customer_id INT
+)
+BEGIN
+    SELECT 
+        p.id AS producto_id,
+        p.name AS nombre_producto,
+        ROUND(AVG(qp.rating), 2) AS promedio_calificacion
+    FROM favorites f
+    JOIN details_favorites df ON f.id = df.favorite_id
+    JOIN products p ON df.product_id = p.id
+    LEFT JOIN quality_products qp ON p.id = qp.product_id
+    WHERE f.customer_id = p_customer_id
+    GROUP BY p.id, p.name
+    ORDER BY promedio_calificacion DESC;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ListarProductosFavoritosConCalificacion(1);
 ```
-Registrar encuesta y sus preguntas asociadas
-```sql
 
+12.4 Registrar encuesta y sus preguntas asociadas.
+🧠 Explicación: Inserta la encuesta principal en *polls* y luego cada una de sus preguntas en otra tabla relacionada como *poll_questions*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE RegistrarEncuestaConPreguntas()
+BEGIN
+    DECLARE new_poll_id INT;
+
+    INSERT INTO polls (name, description, isactive, categorypoll_id)
+    VALUES ('Encuesta de Satisfacción 360', 'Evalúa experiencia general del cliente', 1, 1);
+
+    SET new_poll_id = LAST_INSERT_ID();
+
+    INSERT INTO poll_questions (poll_id, question)
+    VALUES 
+        (new_poll_id, '¿Qué tan satisfecho está con el producto?'),
+        (new_poll_id, '¿Cómo califica la atención al cliente?'),
+        (new_poll_id, '¿Qué mejoraría en el servicio?');
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL RegistrarEncuestaConPreguntas();
+
+-- Verificación:
+SELECT * FROM polls ORDER BY id DESC;
+SELECT * FROM poll_questions WHERE poll_id = LAST_INSERT_ID();
 ```
-Eliminar favoritos antiguos sin calificaciones
-```sql
 
+13.4 Eliminar favoritos antiguos sin calificaciones.
+🧠 Explicación: Filtra productos favoritos que no tienen calificaciones recientes y fueron añadidos hace más de 12 meses, y los elimina de *details_favorites*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE EliminarFavoritosAntiguosSinCalificaciones()
+BEGIN
+    DELETE FROM details_favorites df
+    WHERE df.created_at < CURDATE() - INTERVAL 12 MONTH
+      AND df.product_id NOT IN (
+          SELECT DISTINCT qp.product_id
+          FROM quality_products qp
+          WHERE qp.daterating >= CURDATE() - INTERVAL 12 MONTH
+      );
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL EliminarFavoritosAntiguosSinCalificaciones();
+
+-- Verificación:
+SELECT * 
+FROM details_favorites 
+WHERE created_at < CURDATE() - INTERVAL 12 MONTH;
 ```
-Asociar beneficios automáticamente por audiencia
-```sql
 
+14.4 Asociar beneficios automáticamente por audiencia.
+🧠 Explicación: Inserta en *audiencebenefits* todos los beneficios que apliquen según una lógica predeterminada (por ejemplo, por tipo de usuario).
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE AsociarBeneficiosPorAudiencia()
+BEGIN
+    INSERT IGNORE INTO audiencebenefits (benefit_id, audience_id)
+    SELECT id, 1
+    FROM benefits
+    WHERE description LIKE '%Cliente%';
+
+    INSERT IGNORE INTO audiencebenefits (benefit_id, audience_id)
+    SELECT id, 2
+    FROM benefits
+    WHERE description LIKE '%Empresa%';
+
+    INSERT IGNORE INTO audiencebenefits (benefit_id, audience_id)
+    SELECT id, 3
+    FROM benefits
+    WHERE description LIKE '%Distribuidor%';
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL AsociarBeneficiosPorAudiencia();
+
+-- Verificación:
+SELECT ab.audience_id AS Identificador, a.description AS Audiencia, b.description AS Beneficio
+FROM audiencebenefits ab
+JOIN audiences a ON ab.audience_id = a.id
+JOIN benefits b ON ab.benefit_id = b.id
+ORDER BY ab.audience_id;
 ```
-Historial de cambios de precio
-```sql
 
+15.4 Historial de cambios de precio.
+🧠 Explicación: Cada vez que se cambia un precio, el procedimiento compara el anterior con el nuevo y guarda un registro en una tabla *cambios_precios*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ActualizarPrecioProducto (
+    IN p_company_id VARCHAR(20),
+    IN p_product_id INT,
+    IN p_nuevo_precio DECIMAL(10,2),
+    IN p_usuario VARCHAR(50)
+)
+BEGIN
+    DECLARE v_precio_actual DECIMAL(10,2);
+    DECLARE v_categoria_id INT;
+    DECLARE v_factor DECIMAL(10,4);
+    DECLARE v_existe INT;
+
+    SELECT COUNT(*) INTO v_existe
+    FROM companyproducts
+    WHERE company_id = p_company_id AND product_id = p_product_id;
+
+    IF v_existe = 1 THEN
+        SELECT price INTO v_precio_actual
+        FROM companyproducts
+        WHERE company_id = p_company_id AND product_id = p_product_id;
+
+        IF v_precio_actual <> p_nuevo_precio THEN
+            SET v_factor = p_nuevo_precio / v_precio_actual;
+
+            SELECT category_id INTO v_categoria_id
+            FROM products
+            WHERE id = p_product_id;
+
+            UPDATE companyproducts
+            SET price = p_nuevo_precio
+            WHERE company_id = p_company_id AND product_id = p_product_id;
+
+            INSERT INTO cambios_precios (
+                producto_id, empresa_id, precio_anterior, precio_nuevo,
+                categoria_id, factor, usuario
+            ) VALUES (
+                p_product_id, p_company_id, v_precio_actual, p_nuevo_precio,
+                v_categoria_id, v_factor, p_usuario
+            );
+        END IF;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ActualizarPrecioProducto('COMP1', 1, 16000.00, 'admin');
+
+-- Verificación:
+SELECT * FROM companyproducts 
+WHERE company_id = 'COMP1' AND product_id = 1;
+
+SELECT * FROM cambios_precios 
+WHERE empresa_id = 'COMP1' AND producto_id = 1
+ORDER BY fecha_cambio DESC;
 ```
-Registrar encuesta activa automáticamente
-```sql
 
+16.4 Registrar encuesta activa automáticamente.
+🧠 Explicación: Inserta una encuesta en *polls* con el campo *status* = 'activa' y una fecha de inicio en *NOW()*.
+
+```sql
+-- Modificar TABE polls:
+ALTER TABLE polls 
+ADD COLUMN status VARCHAR(20) DEFAULT 'inactiva',
+ADD COLUMN fecha_inicio DATETIME DEFAULT NULL;
+
+
+DELIMITER $$
+
+CREATE PROCEDURE RegistrarEncuestaActiva (
+    IN p_name VARCHAR(80),
+    IN p_description TEXT,
+    IN p_categorypoll_id INT
+)
+BEGIN
+    INSERT INTO polls (
+    name, description, isactive, status, fecha_inicio, categorypoll_id
+    )
+    VALUES (
+    p_name, p_description, 1, 'activa', NOW(), p_categorypoll_id
+    );
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL RegistrarEncuestaActiva('Encuesta de Opinión', 'Recoge la percepción de los clientes sobre nuestros servicios.', 1);
+
+-- Verificación:
+SELECT * FROM polls
+ORDER BY id DESC
+LIMIT 1;
 ```
-Actualizar unidad de medida de productos sin afectar ventas
-```sql
 
+17.4 Actualizar unidad de medida de productos sin afectar ventas.
+🧠 Explicación: Verifica si el producto no ha sido vendido, y si es así, permite actualizar su *unit_id*.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ActualizarUnidadMedidaSiNoUsado (
+    IN p_product_id INT,
+    IN p_nueva_unidad_id INT
+)
+BEGIN
+    DECLARE v_usado INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_usado
+    FROM quality_products
+    WHERE product_id = p_product_id;
+
+    IF v_usado = 0 THEN
+        UPDATE products
+        SET unitofmeasure_id = p_nueva_unidad_id
+        WHERE id = p_product_id;
+
+        SELECT 'Unidad de medida actualizada.' AS mensaje;
+    ELSE
+        SELECT 'No se puede actualizar: el producto ya ha sido utilizado en calificaciones o ventas.' AS mensaje;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ActualizarUnidadMedidaSiNoUsado(5, 2);
+
+-- Verificación:
+SELECT id, name, unitofmeasure_id 
+FROM products 
+WHERE id = 5;
 ```
-Recalcular promedios de calidad semanalmente
-```sql
 
+18.4 Recalcular promedios de calidad semanalmente.
+🧠 Explicación: Hace un *AVG(rating)* agrupado por producto y lo actualiza en *products*.
+
+```sql
+-- Modificar TABLE products:
+ALTER TABLE products ADD COLUMN promedio_calidad DOUBLE DEFAULT NULL;
+
+DELIMITER $$
+
+CREATE PROCEDURE RecalcularPromediosCalidad()
+BEGIN
+    UPDATE products p
+    SET promedio_calidad = (
+        SELECT ROUND(AVG(qp.rating), 2)
+        FROM quality_products qp
+        WHERE qp.product_id = p.id
+    );
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL RecalcularPromediosCalidad();
+
+-- Verificación:
+SELECT pro.id, pro.name AS Producto, pro.promedio_calidad AS PromedioCalidad
+FROM products pro
+ORDER BY PromedioCalidad DESC;
 ```
-Validar claves foráneas entre calificaciones y encuestas
-```sql
 
+19.4 Validar claves foráneas entre calificaciones y encuestas.
+🧠 Explicación: Busca registros en *rates* con *poll_id* que no existen en *polls*, y los reporta.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE ValidarClavesCalificacionesEncuestas()
+BEGIN
+    INSERT INTO errores_log (
+        tipo_error,
+        descripcion,
+        entidad_origen,
+        id_origen
+    )
+    SELECT 
+        'Poll_id inválido en rates',
+        CONCAT('El poll_id = ', r.poll_id, ' no existe en polls.'),
+        'rates',
+        r.poll_id
+    FROM rates r
+    WHERE r.poll_id NOT IN (
+        SELECT id FROM polls
+    );
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL ValidarClavesCalificacionesEncuestas();
+
+-- Verificación:
+SELECT * 
+FROM errores_log
+WHERE tipo_error = 'Poll_id inválido en rates'
+ORDER BY fecha_error DESC;
+
+-- (Empty Set) No hay ningún *poll_id* que se invalide en *rates*.
 ```
-Generar el top 10 de productos más calificados por ciudad
-```sql
 
+20.4 Generar el top 10 de productos más calificados por ciudad.
+🧠 Explicación: Agrupa las calificaciones por ciudad (a través de la empresa que lo vende) y selecciona los 10 productos con más evaluaciones.
+
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE Top10ProductosPorCiudad()
+BEGIN
+    SELECT *
+    FROM (
+        SELECT
+            ci.name AS ciudad,
+            p.name AS producto,
+            COUNT(qp.rating) AS total_calificaciones,
+            RANK() OVER (PARTITION BY ci.code ORDER BY COUNT(qp.rating) DESC) AS ranking
+        FROM quality_products qp
+        JOIN products p ON qp.product_id = p.id
+        JOIN companies c ON qp.company_id = c.id
+        JOIN citiesormunicipalities ci ON c.city_id = ci.code
+        GROUP BY ci.code, ci.name, p.id, p.name
+    ) AS sub
+    WHERE ranking <= 10
+    ORDER BY ciudad, ranking;
+END$$
+
+DELIMITER ;
+
+-- Uso con CALL:
+CALL Top10ProductosPorCiudad();
 ```
 
 ### 5. Triggers:
