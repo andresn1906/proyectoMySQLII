@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS membershipperiods (
     period_id INT(11) NOT NULL,
     CONSTRAINT FK_period_idmembership FOREIGN KEY (period_id) REFERENCES periods(id),
     PRIMARY KEY (membership_id, period_id)
-    
+
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS benefits (
@@ -118,6 +118,12 @@ CREATE TABLE IF NOT EXISTS membershipbenefits (
     PRIMARY KEY (membership_id, period_id, benefit_id, audience_id)
 ) ENGINE = INNODB;
 
+CREATE TABLE IF NOT EXISTS company_types (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT
+) ENGINE = INNODB;
+
 CREATE TABLE IF NOT EXISTS companies (
     id VARCHAR(20) PRIMARY KEY,
     type_id INT NOT NULL,
@@ -130,7 +136,9 @@ CREATE TABLE IF NOT EXISTS companies (
     audience_id INT NOT NULL,
     CONSTRAINT FK_audience_idcompa FOREIGN KEY (audience_id) REFERENCES audiences(id),
     cellphone VARCHAR(15) UNIQUE NOT NULL,
-    email VARCHAR(80) UNIQUE NOT NULL
+    email VARCHAR(80) UNIQUE NOT NULL,
+    typecompany_id INT NOT NULL,
+    CONSTRAINT FK_typecompany_idcompa FOREIGN KEY (type_id) REFERENCES company_types(id)
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS products (
@@ -153,6 +161,7 @@ CREATE TABLE IF NOT EXISTS companyproducts (
     price DOUBLE NOT NULL,
     unitmeasure_id INT NOT NULL,
     CONSTRAINT FK_unitmeasure_idcompany FOREIGN KEY (unitmeasure_id) REFERENCES unitofmeasure(id),
+    available_product BOOLEAN NOT NULL DEFAULT TRUE,
     PRIMARY KEY (company_id, product_id)
 ) ENGINE = INNODB;
 
