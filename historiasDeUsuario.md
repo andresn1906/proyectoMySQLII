@@ -2,6 +2,7 @@
 
 ### 1. Consultas SQL Especializadas:
 01.1 Como analista, quiero listar todos los productos con su empresa asociada y el precio más bajo por ciudad.
+
 ```sql
 SELECT pro.name AS Producto,
 em.name AS Empresa,
@@ -22,7 +23,9 @@ WHERE (cp.product_id, em.city_id, cp.price) IN (
 )
 ORDER BY producto, ciudad;
 ```
+
 02.1 Como administrador, deseo obtener el top 5 de clientes que más productos han calificado en los últimos 6 meses.
+
 ```sql
 SELECT cu.name AS cliente,
 cu.email AS Correo,
@@ -34,7 +37,9 @@ GROUP BY cu.id, cu.name, cu.email
 ORDER BY ProdCalificados DESC
 LIMIT 5;
 ```
+
 03.1 Como gerente de ventas, quiero ver la distribución de productos por categoría y unidad de medida.
+
 ```sql
 SELECT ca.description AS CategoríaProducto,
 um.description AS UnidadDeMedida,
@@ -46,7 +51,9 @@ JOIN unitofmeasure um ON cp.unitmeasure_id = um.id
 GROUP BY CategoríaProducto, UnidadDeMedida
 ORDER BY CategoríaProducto, UnidadDeMedida;
 ```
+
 04.1 Como cliente, quiero saber qué productos tienen calificaciones superiores al promedio general.
+
 ```sql
 SELECT pro.name AS Producto,
 ROUND(AVG(qp.rating), 2) AS PromedioDeProductos
@@ -58,7 +65,9 @@ HAVING AVG(qp.rating) > (
 )
 ORDER BY PromedioDeProductos DESC;
 ```
+
 05.1 Como auditor, quiero conocer todas las empresas que no han recibido ninguna calificación.
+
 ```sql
 SELECT em.id, em.name AS Empresa
 FROM companies em
@@ -67,7 +76,9 @@ LEFT JOIN quality_products qp ON em.id = qp.company_id
 WHERE r.company_id IS NULL AND qp.company_id IS NULL; 
 -- (Empty set) Todas las empresas han sido calificadas.
 ```
+
 06.1 Como operador, deseo obtener los productos que han sido añadidos como favoritos por más de 10 clientes distintos.
+
 ```sql
 SELECT df.product_id,
 pro.name AS Producto,
@@ -79,7 +90,9 @@ GROUP BY df.product_id, pro.name
 HAVING COUNT(DISTINCT f.customer_id) > 10; 
 -- (Empty set) Hay solamente 3 clientes que tienen menos de 3 productos añadidos como favoritos.
 ```
+
 07.1 Como gerente regional, quiero obtener todas las empresas activas por ciudad y categoría.
+
 ```sql
 SELECT em.id AS company_id, em.name AS Empresa,
 ct.name AS Ciudad, ct.code AS CódigoCiudad,
@@ -100,7 +113,9 @@ WHERE em.id IN (
 )
 ORDER BY Ciudad, Categoría;
 ```
+
 08.1 Como especialista en marketing, deseo obtener los 10 productos más calificados en cada ciudad.
+
 ```sql
 SELECT sub.city_id AS IdCiudad, sub.product_id,
 pro.name AS Producto,
@@ -120,7 +135,9 @@ JOIN products pro ON sub.product_id = pro.id
 WHERE sub.rango <= 10
 ORDER BY sub.city_id, sub.rango;
 ```
+
 09.1 Como técnico, quiero identificar productos sin unidad de medida asignada.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio, pro.category_id AS IdCategoría, pro.image AS URLImage
 FROM products pro
@@ -128,7 +145,9 @@ LEFT JOIN companyproducts cp ON pro.id = cp.product_id
 WHERE cp.unitmeasure_id IS NULL;
 -- (Empty set) Todos los productos dados en el INSERT tienen unidad de medida.
 ```
+
 10.1 Como gestor de beneficios, deseo ver los planes de membresía sin beneficios registrados.
+
 ```sql
 SELECT ms.id, ms.name AS Membresía, ms.description AS Descripción
 FROM memberships ms
@@ -136,7 +155,9 @@ LEFT JOIN membershipbenefits mb ON ms.id = mb.membership_id
 WHERE mb.benefit_id IS NULL;
 -- (Empty set) Cada plan dado en el INSERT tiene al menos un beneficio registrado.
 ```
+
 11.1 Como supervisor, quiero obtener los productos de una categoría específica con su promedio de calificación.
+
 ```sql
 -- Productos categoría 1:
 SELECT pro.id AS IdProducto, pro.name AS Producto,
@@ -168,7 +189,9 @@ JOIN quality_products qp ON pro.id = qp.product_id
 WHERE pro.category_id = 3 
 GROUP BY IdProducto, Producto, Categoría;
 ```
+
 12.1 Como asesor, deseo obtener los clientes que han comprado productos de más de una empresa.
+
 ```sql
 SELECT qp.customer_id AS IdCliente, 
 c.name AS Cliente, 
@@ -179,7 +202,9 @@ GROUP BY qp.customer_id, c.name
 HAVING COUNT(DISTINCT qp.company_id) > 1;
 -- (Empty set) Los clientes no han interactuado con más de una empresa. 
 ```
+
 13.1 Como director, quiero identificar las ciudades con más clientes activos.
+
 ```sql
 SELECT c.city_id AS IdCiudad, 
 com.name AS Ciudad,
@@ -190,7 +215,9 @@ WHERE c.membership_active = 1
 GROUP BY c.city_id, com.name
 ORDER BY TotalClientesActivos DESC;
 ```
+
 14.1 Como analista de calidad, deseo obtener el ranking de productos por empresa basado en la media de *quality_products*.
+
 ```sql
 SELECT cp.company_id AS IdEmpresa,
 em.name AS Empresa,
@@ -204,7 +231,9 @@ JOIN quality_products qp ON pro.id = qp.product_id AND cp.company_id = qp.compan
 GROUP BY cp.company_id, em.name, pro.id, pro.name
 ORDER BY cp.company_id, Ranking;
 ```
+
 15.1 Como administrador, quiero listar empresas que ofrecen más de cinco productos distintos.
+
 ```sql
 SELECT em.id AS IdEmpresa, em.name AS Empresa,
 COUNT(DISTINCT cp.product_id) AS TotalProductos
@@ -213,7 +242,9 @@ JOIN companyproducts cp ON em.id = cp.company_id
 GROUP BY em.id, em.name
 HAVING COUNT(DISTINCT cp.product_id) > 5;
 ```
+
 16.1 Como cliente, deseo visualizar los productos favoritos que aún no han sido calificados.
+
 ```sql
 SELECT df.product_id AS IdProducto,
 pro.name AS Producto,
@@ -228,7 +259,9 @@ LEFT JOIN quality_products qp
   AND qp.customer_id = f.customer_id
 WHERE qp.product_id IS NULL;
 ```
+
 17.1 Como desarrollador, deseo consultar los beneficios asignados a cada audiencia junto con su descripción.
+
 ```sql
 SELECT ab.audience_id AS IdAudiencia, ab.benefit_id AS IdBeneficio,
 a.description AS TipoAudiencia,
@@ -237,7 +270,9 @@ FROM audiencebenefits ab
 JOIN audiences a ON ab.audience_id = a.id
 JOIN benefits b ON ab.benefit_id = b.id;
 ```
+
 18.1 Como operador logístico, quiero saber en qué ciudades hay empresas sin productos asociados.
+
 ```sql
 SELECT em.id AS IdEmpresa, em.name AS Empresa,
 com.name AS Ciudad
@@ -247,7 +282,9 @@ LEFT JOIN companyproducts cp ON em.id = cp.company_id
 WHERE cp.product_id IS NULL;
 -- (Empty set) Cada una de las empresas tiene al menos un producto asociado. 
 ```
+
 19.1 Como técnico, deseo obtener todas las empresas con productos duplicados por nombre.
+
 ```sql
 SELECT cp.company_id AS IdEmpresa,em.name AS Empresa,
 pro.name AS Producto,
@@ -259,7 +296,9 @@ GROUP BY cp.company_id, em.name, pro.name
 HAVING COUNT(pro.id) > 1;
 -- (Empty set) No hay empresas con productos duplicados.
 ```
+
 20.1 Como analista, quiero una vista resumen de clientes, productos favoritos y promedio de calificación recibido.
+
 ```sql
 SELECT cu.id AS IdCliente, cu.name AS Cliente,
 pro.id AS IdProducto,
@@ -276,6 +315,7 @@ GROUP BY cu.id, cu.name, pro.id, pro.name;
 ### 2. Subconsultas:
 
 01.2 Como gerente, quiero ver los productos cuyo precio esté por encima del promedio de su categoría.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.price AS Precio,
 c.description AS Categoría
@@ -287,7 +327,9 @@ WHERE pro.price > (
     WHERE pro2.category_id = pro.category_id
 );
 ```
+
 02.2 Como administrador, deseo listar las empresas que tienen más productos que la media de empresas.
+
 ```sql
 SELECT cp.company_id AS IdEmpresa, 
 em.name AS Empresa, 
@@ -304,7 +346,9 @@ HAVING COUNT(cp.product_id) > (
     ) AS sub
 );
 ```
+
 03.2 Como cliente, quiero ver mis productos favoritos que han sido calificados por otros clientes.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
 cat.description AS Categoría,
@@ -322,7 +366,9 @@ JOIN quality_products q ON pro.id = q.product_id
 WHERE q.customer_id <> 1;
 -- (Empty Set) El producto favorito del cliente con ID 1 no ha sido calificado por un cliente diferente a él mismo.
 ```
+
 04.2 Como supervisor, deseo obtener los productos con el mayor número de veces añadidos como favoritos.
+
 ```sql
 SELECT 
 pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
@@ -338,7 +384,9 @@ JOIN products pro ON favs.product_id = pro.id
 JOIN categories cat ON pro.category_id = cat.id
 ORDER BY favs.VecesFavorito DESC;
 ```
+
 05.2 Como técnico, quiero listar los clientes cuyo correo no aparece en la tabla *rates* ni en *quality_products*.
+
 ```sql
 SELECT 
 c.id AS IdCliente, c.name AS Cliente, c.email AS Correo, c.cellphone AS Celular
@@ -355,7 +403,9 @@ AND c.email NOT IN (
 );
 -- (Empty Set) Los correos de cada cliente se almacena en almenos una de las tablas "rates" o "quality_products".
 ```
+
 06.2 Como gestor de calidad, quiero obtener los productos con una calificación inferior al mínimo de su categoría.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto,
 cat.description AS Categoría,
@@ -371,7 +421,9 @@ WHERE qp.rating < (
 );
 -- (Empty Set) Ningún producto tiene una calificación menor al mínimo de su categoría.
 ```
+
 07.2 Como desarrollador, deseo listar las ciudades que no tienen clientes registrados.
+
 ```sql
 SELECT com.code AS CodigoCiudad, com.name AS Ciudad
 FROM citiesormunicipalities com
@@ -380,7 +432,9 @@ WHERE com.code NOT IN (
     FROM customers c
 );
 ```
+
 08.2 Como administrador, quiero ver los productos que no han sido evaluados en ninguna encuesta.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
 cat.description AS Categoría
@@ -391,7 +445,9 @@ WHERE pro.id NOT IN (
     FROM quality_products qp
 );
 ```
+
 09.2 Como auditor, quiero listar los beneficios que no están asignados a ninguna audiencia.
+
 ```sql
 SELECT b.id AS IdBeneficio, b.description AS Beneficio, b.detail AS Detalle
 FROM benefits b
@@ -401,7 +457,9 @@ WHERE b.id NOT IN (
 );
 -- (Empty Set) Todos los beneficios están asignados a cada una de las audiencia.
 ```
+
 10.2 Como cliente, deseo obtener mis productos favoritos que no están disponibles actualmente en ninguna empresa.
+
 ```sql
 SELECT DISTINCT pro.id AS IdProducto, pro.name AS Producto
 FROM products pro
@@ -413,7 +471,9 @@ WHERE pro.id NOT IN (
     WHERE cp.available_product = 1
 );
 ```
+
 11.2 Como director, deseo consultar los productos vendidos en empresas cuya ciudad tenga menos de tres empresas registradas.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto,
 cat.description AS Categoría,
@@ -431,7 +491,9 @@ WHERE em.city_id IN (
     HAVING COUNT(em2.id) < 3
 );
 ```
+
 12.2 Como analista, quiero ver los productos con calidad superior al promedio de todos los productos.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.price AS Precio,
 cat.description AS Categoría,
@@ -445,7 +507,9 @@ HAVING AVG(qp.rating) > (
   FROM quality_products qp
 );
 ```
+
 13.2 Como gestor, quiero ver empresas que sólo venden productos de una única categoría.
+
 ```sql
 SELECT em.id AS IdEmpresa, em.name AS Empresa,
 cat.description AS Categoria
@@ -462,7 +526,9 @@ WHERE em.id IN (
 )
 GROUP BY em.id, em.name, cat.description;
 ```
+
 14.2 Como gerente comercial, quiero consultar los productos con el mayor precio entre todas las empresas.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto,
 cp.price AS Precio,
@@ -475,7 +541,9 @@ WHERE cp.price = (
     FROM companyproducts
 );
 ```
+
 15.2 Como cliente, quiero saber si algún producto de mis favoritos ha sido calificado por otro cliente con más de 4 estrellas.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio,
 qp.rating AS Calificación, qp.customer_id AS ClienteCalificador
@@ -491,7 +559,9 @@ WHERE qp.customer_id <> 1
     AND qp.rating > 4;
 -- (Empty Set) Mis productos favoritos(id = 1) no han sido calificados por otro cliente con más de 4 estrellas. 
 ```
+
 16.2 Como operador, quiero saber qué productos no tienen imagen asignada pero sí han sido calificados.
+
 ```sql
 SELECT pro.id AS IdProducto, pro.name AS Producto, pro.detail AS Detalle, pro.price AS Precio, pro.image AS Imagen
 FROM products pro
@@ -502,7 +572,9 @@ WHERE (pro.image IS NULL OR pro.image = '')
 );
 -- (Empty Set) Todo producto calificado presenta imagen.
 ```
+
 17.2 Como auditor, quiero ver los planes de membresía sin periodo vigente.
+
 ```sql
 SELECT ms.id AS IdMembresia, ms.name AS Membresía, ms.description AS Descripcion
 FROM memberships ms
@@ -512,7 +584,9 @@ WHERE ms.id NOT IN (
 );
 -- (Empty Set) Todas las membresías tienen un periodo vigente establecido.
 ```
+
 18.2 Como especialista, quiero identificar los beneficios compartidos por más de una audiencia.
+
 ```sql
 SELECT b.id AS Beneficio, b.description AS Descripcion
 FROM benefits b
@@ -524,7 +598,9 @@ WHERE b.id IN (
 );
 -- (Empty Set) Cada beneficio está asignado a un solo tipo de audiencia.
 ```
+
 19.2 Como técnico, quiero encontrar empresas cuyos productos no tengan unidad de medida definida.
+
 ```sql
 SELECT em.id AS IdEmpresa, em.name AS Empresa
 FROM companies em
@@ -536,7 +612,9 @@ WHERE em.id IN (
 );
 -- (Empy Set) Todos los productos tienen una unidad de medida.
 ```
+
 20.2 Como gestor de campañas, deseo obtener los clientes con membresía activa y sin productos favoritos.
+
 ```sql
 SELECT cu.id AS IdCliente, cu.name AS NombreCliente
 FROM customers cu
@@ -2628,92 +2706,762 @@ WHERE id = 1;
 
 01.6 Borrar productos sin actividad cada 6 meses.
 🧠 Explicación: Algunos productos pueden haber sido creados pero nunca calificados, marcados como favoritos ni asociados a una empresa. Este evento eliminaría esos productos cada 6 meses.
-🛠️ Se usaría un DELETE sobre products donde no existan registros en rates, favorites ni companyproducts.
-📅 Frecuencia del evento: EVERY 6 MONTH.
+🛠️ Se usaría un *DELETE* sobre *products* donde no existan registros en *rates*, *favorites* ni *companyproducts*.
+📅 Frecuencia del evento: *EVERY 6 MONTH*.
 
 ```sql
+-- Activar el Event Scheduler:
+SET GLOBAL event_scheduler = ON;
 
+-- Event:
+CREATE EVENT delete_inactive_products
+ON SCHEDULE EVERY 6 MONTH
+DO
+  DELETE FROM products
+  WHERE id NOT IN (SELECT DISTINCT product_id FROM rates)
+    AND id NOT IN (SELECT DISTINCT product_id FROM favorites)
+    AND id NOT IN (SELECT DISTINCT product_id FROM companyproducts);
+
+-- Verificar el evento:
+SHOW CREATE EVENT delete_inactive_products;
+
+SELECT * 
+FROM information_schema.EVENTS
+WHERE EVENT_NAME = 'delete_inactive_products';
 ```
-02.6 Recalcular el promedio de calificaciones semanalmente
-```sql
 
+02.6 Recalcular el promedio de calificaciones semanalmente.
+🧠 Explicación: Se puede tener una tabla product_metrics que almacena promedios pre-calculados para rapidez. El evento actualizaría esa tabla con nuevos promedios.
+🛠️ Usa *UPDATE* con *AVG(rating)* agrupado por producto.
+📅 Frecuencia: *EVERY 1 WEEK*.
+
+```sql
+-- Modificar TABLE rates y polls:
+ALTER TABLE rates ADD COLUMN product_id INT NOT NULL;
+ALTER TABLE polls ADD COLUMN product_id INT NOT NULL;
+
+UPDATE polls SET product_id = 1 WHERE id = 1;
+UPDATE polls SET product_id = 2 WHERE id = 2;
+UPDATE polls SET product_id = 1 WHERE id = 3;
+UPDATE polls SET product_id = 3 WHERE id = 4;
+UPDATE rates r
+JOIN polls p ON r.poll_id = p.id
+SET r.product_id = p.product_id;
+
+-- Event:
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS recalculate_avg_rating_weekly
+ON SCHEDULE EVERY 1 WEEK
+DO
+BEGIN
+    INSERT INTO product_metrics (product_id, avg_rating)
+    SELECT product_id, AVG(rating)
+    FROM rates
+    GROUP BY product_id
+    ON DUPLICATE KEY UPDATE avg_rating = VALUES(avg_rating);
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT recalculate_avg_rating_weekly;
+
+-- Prueba inmediata del evento:
+INSERT INTO product_metrics (product_id, avg_rating)
+SELECT product_id, AVG(rating)
+FROM rates
+GROUP BY product_id
+ON DUPLICATE KEY UPDATE avg_rating = VALUES(avg_rating);
+
+SELECT * 
+FROM product_metrics;
 ```
-03.6 Actualizar precios según inflación mensual
-```sql
 
+03.6 Actualizar precios según inflación mensual.
+🧠 Explicación: Aplicar un porcentaje de aumento (por ejemplo, 3%) a los precios de todos los productos.
+🛠️ *UPDATE companyproducts SET price = price x 1.03*;
+📅 Frecuencia: *EVERY 1 MONTH*.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS update_prices_monthly
+ON SCHEDULE EVERY 1 MONTH
+DO
+BEGIN
+    UPDATE companyproducts
+    SET price = price * 1.03;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT update_prices_monthly;
+
+-- Prueba inmediata del evento:
+UPDATE companyproducts
+SET price = price * 1.03;
+
+SELECT company_id, product_id, price 
+FROM companyproducts;
 ```
-04.6 Crear backups lógicos diariamente
-```sql
 
+04.6 Crear backups lógicos diariamente.
+🧠 Explicación: Este evento no ejecuta comandos del sistema, pero puede volcar datos clave a una tabla temporal o de respaldo (*products_backup*, *rates_backup*, etc.).
+📅 *EVERY 1 DAY STARTS '00:00:00'*
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS logical_backup_daily
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    DELETE FROM products_backup;
+    DELETE FROM rates_backup;
+
+    INSERT INTO products_backup SELECT * FROM products;
+    INSERT INTO rates_backup SELECT * FROM rates;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT logical_backup_daily;
 ```
-05.6 Notificar sobre productos favoritos sin calificar
-```sql
 
+05.6 Notificar sobre productos favoritos sin calificar.
+🧠 Explicación: Genera una lista (*user_reminders*) de *product_id* donde el cliente tiene el producto en favoritos pero no hay *rate*.
+🛠️ Requiere *INSERT INTO* recordatorios usando un *LEFT JOIN* y *WHERE* *rate IS NULL*.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS notify_unrated_favorites
+ON SCHEDULE EVERY 1 WEEK
+DO
+BEGIN
+    DELETE FROM user_reminders;
+
+    INSERT INTO user_reminders (customer_id, product_id)
+    SELECT f.customer_id, cp.product_id
+    FROM favorites f
+    JOIN companyproducts cp ON f.company_id = cp.company_id
+    LEFT JOIN rates r ON r.customer_id = f.customer_id AND r.product_id = cp.product_id
+    WHERE r.product_id IS NULL;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT notify_unrated_favorites;
+
+-- Prueba inmediata:
+DELETE FROM user_reminders;
+
+INSERT INTO user_reminders (customer_id, product_id)
+SELECT f.customer_id, cp.product_id
+FROM favorites f
+JOIN companyproducts cp ON f.company_id = cp.company_id
+LEFT JOIN rates r ON r.customer_id = f.customer_id AND r.product_id = cp.product_id
+WHERE r.product_id IS NULL;
 ```
-06.6 Revisar inconsistencias entre empresa y productos
-```sql
 
+06.6 Revisar inconsistencias entre empresa y productos.
+🧠 Explicación: Detecta productos sin empresa, o empresas sin productos, y los registra en una tabla de anomalías.
+🛠️ Puede usar *NOT EXISTS* y *JOIN* para llenar una tabla *errores_log*.
+📅 *EVERY 1 WEEK ON SUNDAY*
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS log_inconsistencies_weekly
+ON SCHEDULE
+    EVERY 1 WEEK
+    STARTS (TIMESTAMP(CURRENT_DATE, '00:00:00') + INTERVAL (7 - WEEKDAY(CURRENT_DATE)) DAY)
+DO
+BEGIN
+    INSERT INTO errores_log (tipo_error, descripcion, entidad_origen, id_origen)
+    SELECT 'Producto sin empresa',
+    CONCAT('El producto con ID ', p.id, ' no está asociado a ninguna empresa.'),
+    'products',
+    p.id
+    FROM products p
+    WHERE NOT EXISTS (
+        SELECT 1 FROM companyproducts cp WHERE cp.product_id = p.id
+    );
+
+    INSERT INTO errores_log (tipo_error, descripcion, entidad_origen, id_origen)
+    SELECT 'Empresa sin productos',
+    CONCAT('La empresa con ID ', e.id, ' no tiene productos asociados.'),
+    'companies',
+    e.id
+    FROM companies e
+    WHERE NOT EXISTS (
+        SELECT 1 FROM companyproducts cp WHERE cp.company_id = e.id
+    );
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT log_inconsistencies_weekly;
+
+-- Prueba inmediata:
+INSERT INTO errores_log (tipo_error, descripcion, entidad_origen, id_origen)
+SELECT 'Producto sin empresa',
+CONCAT('El producto con ID ', p.id, ' no está asociado a ninguna empresa.'),
+'products',
+p.id
+FROM products p
+WHERE NOT EXISTS (
+    SELECT 1 FROM companyproducts cp WHERE cp.product_id = p.id
+);
+INSERT INTO errores_log (tipo_error, descripcion, entidad_origen, id_origen)
+SELECT 'Empresa sin productos',
+CONCAT('La empresa con ID ', e.id, ' no tiene productos asociados.'),
+'companies',
+e.id
+FROM companies e
+WHERE NOT EXISTS (
+    SELECT 1 FROM companyproducts cp WHERE cp.company_id = e.id
+);
+
+SELECT * 
+FROM errores_log 
+ORDER BY fecha_error DESC;
 ```
-07.6 Archivar membresías vencidas diariamente
-```sql
 
+07.6 Archivar membresías vencidas diariamente.
+🧠 Explicación: Cambia el estado de la membresía cuando su *end_date* ya pasó.
+🛠️ *UPDATE membershipperiods SET status = 'INACTIVA' WHERE end_date < CURDATE()*;
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS archive_expired_memberships_daily
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    UPDATE membershipperiods
+    SET status = 'INACTIVA'
+    WHERE end_date < CURDATE();
+END$$
+
+DELIMITER ;
+-- Verificar el evento:
+SHOW CREATE EVENT archive_expired_memberships_daily;
+
+-- Prueba inmediata:
+UPDATE membershipperiods
+SET status = 'INACTIVA'
+WHERE fecha_fin < CURDATE();
+
+SELECT * 
+FROM membershipperiods
+WHERE status = 'INACTIVA';
 ```
-08.6 Notificar beneficios nuevos a usuarios semanalmente
-```sql
 
+08.6 Notificar beneficios nuevos a usuarios semanalmente.
+🧠 Explicación: Detecta registros nuevos en la tabla *benefits* desde la última semana y los inserta en notificaciones.
+🛠️ *INSERT INTO notificaciones SELECT ... WHERE created_at >= NOW() - INTERVAL 7 DAY*
+
+```sql
+-- Modificar TABLE benefits:
+ALTER TABLE benefits
+ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- Event:
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS notificar_beneficios_nuevos
+ON SCHEDULE EVERY 1 WEEK
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    INSERT INTO notificaciones (mensaje)
+    SELECT CONCAT('Nuevo beneficio disponible: ', name)
+    FROM benefits
+    WHERE created_at >= NOW() - INTERVAL 7 DAY;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT notificar_beneficios_nuevos;
+
+-- Probar inmediatamente:
+INSERT INTO notificaciones (mensaje)
+SELECT CONCAT('Nuevo beneficio disponible: ', description)
+FROM benefits
+WHERE created_at >= NOW() - INTERVAL 7 DAY;
+
+SELECT * 
+FROM notificaciones
+ORDER BY fecha DESC;
 ```
-09.6 Calcular cantidad de favoritos por cliente mensualmente
-```sql
 
+09.6 Calcular cantidad de favoritos por cliente mensualmente.
+🧠 Explicación: Cuenta los productos favoritos por cliente y guarda el resultado en una tabla de resumen mensual (*favoritos_resumen*).
+🛠️ *INSERT INTO favoritos_resumen SELECT customer_id, COUNT(*) ... GROUP BY customer_id*
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS resumen_favoritos_mensual
+ON SCHEDULE EVERY 1 MONTH
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    INSERT INTO favoritos_resumen (customer_id, total_favoritos, resumen_fecha)
+    SELECT customer_id, COUNT(*), CURDATE()
+    FROM favorites
+    GROUP BY customer_id;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT resumen_favoritos_mensual;
+
+-- Probar inmediatamente:
+INSERT INTO favoritos_resumen (customer_id, total_favoritos, resumen_fecha)
+SELECT customer_id, COUNT(*), CURDATE()
+FROM favorites
+GROUP BY customer_id
+ON DUPLICATE KEY UPDATE total_favoritos = VALUES(total_favoritos);
+
+SELECT * 
+FROM favoritos_resumen
+ORDER BY resumen_fecha DESC;
 ```
-10.6 Validar claves foráneas semanalmente
-```sql
 
+10.6 Validar claves foráneas semanalmente.
+🧠 Explicación: Comprueba que cada *product_id*, *customer_id*, etc., tengan correspondencia en sus tablas. Si no, se registra en una tabla *inconsistencias_fk*.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS validar_claves_foraneas
+ON SCHEDULE
+    EVERY 1 WEEK
+    STARTS CURRENT_TIMESTAMP
+    COMMENT 'Detecta claves foráneas inválidas en rates'
+DO
+BEGIN
+    DELETE FROM inconsistencias_fk WHERE tabla_afectada = 'rates';
+
+    INSERT INTO inconsistencias_fk (tabla_afectada, campo, valor_erroneo)
+    SELECT 'rates', 'product_id', r.product_id
+    FROM rates r
+    LEFT JOIN products p ON r.product_id = p.id
+    WHERE p.id IS NULL;
+
+    INSERT INTO inconsistencias_fk (tabla_afectada, campo, valor_erroneo)
+    SELECT 'rates', 'customer_id', r.customer_id
+    FROM rates r
+    LEFT JOIN customers c ON r.customer_id = c.id
+    WHERE c.id IS NULL;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT validar_claves_foraneas;
+
+-- Probar inmediatamente:
+DELETE FROM inconsistencias_fk WHERE tabla_afectada = 'rates';
+
+
+INSERT INTO inconsistencias_fk (tabla_afectada, campo, valor_erroneo)
+SELECT 'rates', 'product_id', r.product_id
+FROM rates r
+LEFT JOIN products p ON r.product_id = p.id
+WHERE p.id IS NULL;
+
+INSERT INTO inconsistencias_fk (tabla_afectada, campo, valor_erroneo)
+SELECT 'rates', 'customer_id', r.customer_id
+FROM rates r
+LEFT JOIN customers c ON r.customer_id = c.id
+WHERE c.id IS NULL;
+
+SELECT * 
+FROM inconsistencias_fk 
+WHERE tabla_afectada = 'rates';
+-- (Empty Set) Este caso indica que el EVENT se ha ejecutado, pues todas las llaves foráneas están relacionadas correctamente.
 ```
-11.6 Eliminar calificaciones inválidas antiguas
-```sql
 
+11.6 Eliminar calificaciones inválidas antiguas.
+🧠 Explicación: Borra *rates* donde el valor de *rating* es *NULL* o *<0* y que hayan sido creadas hace más de 3 meses.
+🛠️ *DELETE FROM rates WHERE rating IS NULL AND created_at < NOW() - INTERVAL 3 MONTH*.
+
+```sql
+-- Modificar TABLE rates:
+ALTER TABLE rates
+ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- Event:
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS eliminar_calificaciones_invalidas
+ON SCHEDULE EVERY 1 MONTH
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    DELETE FROM rates
+    WHERE (rating IS NULL OR rating < 0)
+      AND created_at < NOW() - INTERVAL 3 MONTH;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT eliminar_calificaciones_invalidas;
+
+-- Probar inmediatamente:
+DELETE FROM rates
+WHERE (rating IS NULL OR rating < 0) AND created_at < NOW() - INTERVAL 3 MONTH;
 ```
-12.6 Cambiar estado de encuestas inactivas automáticamente
-```sql
 
+12.6 Cambiar estado de encuestas inactivas automáticamente.
+🧠 Explicación: Cambia el campo *status = 'inactiva'* si una encuesta no tiene nuevas respuestas en más de 6 meses.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS actualizar_estado_encuestas_inactivas
+ON SCHEDULE EVERY 1 WEEK
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    UPDATE polls p
+    SET p.isactive = 0
+    WHERE p.isactive = 1
+      AND NOT EXISTS (
+          SELECT 1
+          FROM poll_responses pr
+          WHERE pr.poll_id = p.id
+            AND pr.response_date >= NOW() - INTERVAL 6 MONTH
+      );
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT actualizar_estado_encuestas_inactivas;
+
+-- Probar inmediatamente:
+UPDATE polls p
+SET p.isactive = 0
+WHERE p.isactive = 1
+  AND NOT EXISTS (
+      SELECT 1
+      FROM poll_responses pr
+      WHERE pr.poll_id = p.id
+        AND pr.response_date >= NOW() - INTERVAL 6 MONTH
+  );
 ```
-13.6 Registrar auditorías de forma periódica
-```sql
 
+13.6 Registrar auditorías de forma periódica.
+🧠 Explicación: Cada día, se puede registrar el conteo de productos, usuarios, etc. en una tabla tipo *auditorias_diarias*.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS registrar_auditoria_diaria
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_DATE + INTERVAL 1 DAY
+DO
+BEGIN
+    INSERT INTO auditorias_diarias (fecha, total_productos, total_usuarios, total_empresas)
+    SELECT
+        CURRENT_DATE,
+        (SELECT COUNT(*) FROM products),
+        (SELECT COUNT(*) FROM customers),
+        (SELECT COUNT(*) FROM companies);
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT registrar_auditoria_diaria;
+
+-- Probar inmediatamente:
+INSERT INTO auditorias_diarias (fecha, total_productos, total_usuarios, total_empresas)
+SELECT CURRENT_DATE,
+(SELECT COUNT(*) FROM products),
+(SELECT COUNT(*) FROM customers),
+(SELECT COUNT(*) FROM companies);
+
+SELECT * 
+FROM auditorias_diarias 
+ORDER BY fecha DESC LIMIT 10;
 ```
-14.6 Notificar métricas de calidad a empresas
-```sql
 
+14.6 Notificar métricas de calidad a empresas.
+🧠 Explicación: Genera una tabla o archivo con *AVG(rating)* por producto y empresa y se registra en *notificaciones_empresa*.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS notificar_metricas_calidad
+ON SCHEDULE EVERY 1 WEEK
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    INSERT INTO notificaciones_empresa (company_id, product_id, avg_rating, fecha)
+    SELECT 
+        cp.company_id,
+        r.product_id,
+        AVG(r.rating) AS avg_rating,
+        NOW()
+    FROM rates r
+    JOIN products p ON r.product_id = p.id
+    JOIN companyproducts cp ON p.id = cp.product_id
+    GROUP BY cp.company_id, r.product_id;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT notificar_metricas_calidad;
+
+-- Prueba inmediat:
+SELECT cp.company_id,
+r.product_id,
+AVG(r.rating) AS avg_rating,
+NOW() AS fecha
+FROM rates r
+JOIN products p ON r.product_id = p.id
+JOIN companyproducts cp ON p.id = cp.product_id
+GROUP BY cp.company_id, r.product_id;
+
+SELECT * 
+FROM notificaciones_empresa 
+ORDER BY fecha DESC;
 ```
-15.6 Recordar renovación de membresías
-```sql
 
+15.6 Recordar renovación de membresías.
+🧠 Explicación: Busca *membershipperiods* donde *end_date* esté entre hoy y 7 días adelante, e inserta recordatorios.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS evento_recordatorio_membresias
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    INSERT IGNORE INTO user_reminders (customer_id, product_id)
+    SELECT 
+        mp.customer_id,
+        m.product_id
+    FROM membershipperiods mp
+    JOIN memberships m ON mp.membership_id = m.id
+    WHERE mp.end_date BETWEEN CURDATE() AND CURDATE() + INTERVAL 7 DAY;
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT evento_recordatorio_membresias;
+
+SELECT * 
+FROM user_reminders;
 ```
-16.6 Reordenar estadísticas generales cada semana
-```sql
 
+16.6 Reordenar estadísticas generales cada semana.
+🧠 Explicación: Calcula y actualiza métricas como total de productos activos, clientes registrados, etc., en una tabla *estadisticas*.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS actualizar_estadisticas_semanales
+ON SCHEDULE EVERY 1 WEEK
+STARTS CURRENT_TIMESTAMP
+DO
+BEGIN
+    INSERT INTO estadisticas (
+        fecha,
+        total_productos_activos,
+        total_clientes,
+        total_empresas,
+        total_productos_disponibles
+    )
+    SELECT
+        CURDATE(),
+        (SELECT COUNT(*) FROM products),
+        (SELECT COUNT(*) FROM customers),
+        (SELECT COUNT(*) FROM companies),
+        (SELECT COUNT(*) FROM companyproducts WHERE available_product = 1);
+END$$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT actualizar_estadisticas_semanales;
+
+-- Prueba inmediata:
+INSERT INTO estadisticas (fecha, total_productos_activos, total_clientes, total_empresas, total_productos_disponibles)
+SELECT
+CURDATE(),
+(SELECT COUNT(*) FROM products),
+(SELECT COUNT(*) FROM customers),
+(SELECT COUNT(*) FROM companies),
+(SELECT COUNT(*) FROM companyproducts 
+WHERE available_product = 1);
+
+SELECT * FROM estadisticas WHERE fecha = CURDATE();
 ```
-17.6 Crear resúmenes temporales de uso por categoría
-```sql
 
+17.6 Crear resúmenes temporales de uso por categoría.
+🧠 Explicación: Cuenta cuántos productos se han calificado en cada categoría y guarda los resultados para dashboards.
+
+```sql
+CREATE EVENT IF NOT EXISTS generar_resumen_categoria_uso_diario
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP
+DO
+INSERT INTO resumen_categoria_uso (category_id, total_calificaciones, fecha_resumen)
+SELECT p.category_id, COUNT(r.id) AS total_calificaciones, CURDATE()
+FROM products p
+JOIN rates r ON r.product_id = p.id
+GROUP BY p.category_id;
+
+-- Verificar el evento:
+SHOW CREATE EVENT generar_resumen_categoria_uso_diario;
 ```
-18.6 Actualizar beneficios caducados
-```sql
 
+18.6 Actualizar beneficios caducados.
+🧠 Explicación: Revisa si un beneficio tiene una fecha de expiración (campo *expires_at*) y lo marca como inactivo.
+
+```sql
+-- Modificar TABLE membershipbenefits:
+ALTER TABLE membershipbenefits
+ADD COLUMN expires_at DATE DEFAULT NULL,
+ADD COLUMN isactive BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Event:
+CREATE EVENT IF NOT EXISTS actualizar_beneficios_caducados
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP
+DO
+UPDATE membershipbenefits
+SET isactive = 0
+WHERE expires_at IS NOT NULL
+  AND expires_at < CURDATE()
+  AND isactive = 1;
+
+-- Verificar el evento:
+SHOW CREATE EVENT actualizar_beneficios_caducados;
+
+-- Prueba inmediata:
+INSERT INTO membershipbenefits (membership_id, period_id, benefit_id, audience_id, expires_at, isactive)
+VALUES (1, 1, 1, 1, CURDATE() - INTERVAL 1 DAY, TRUE);
+
+SELECT membership_id, period_id, benefit_id, audience_id, expires_at, isactive
+FROM membershipbenefits;
 ```
-19.6 Alertar productos sin evaluación anual
-```sql
 
+19.6 Alertar productos sin evaluación anual.
+🧠 Explicación: Busca productos sin rate en los últimos 365 días y genera alertas o registros en *alertas_productos*.
+
+```sql
+CREATE EVENT IF NOT EXISTS evento_alerta_productos_sin_evaluacion
+ON SCHEDULE EVERY 1 DAY
+DO
+INSERT INTO alertas_productos (product_id, mensaje)
+SELECT p.id, 'Producto sin calificaciones en los últimos 12 meses'
+FROM products p
+LEFT JOIN (
+    SELECT product_id
+    FROM rates
+    WHERE rating IS NOT NULL AND created_at >= NOW() - INTERVAL 365 DAY
+    GROUP BY product_id
+) r ON p.id = r.product_id
+WHERE r.product_id IS NULL;
+
+-- Verificar el evento:
+SHOW CREATE EVENT evento_alerta_productos_sin_evaluacion;
+
+-- Prueba inmediata:
+INSERT INTO alertas_productos (product_id, mensaje)
+SELECT p.id, 'Producto sin calificaciones en los últimos 12 meses'
+FROM products p
+LEFT JOIN (
+    SELECT product_id
+    FROM rates
+    WHERE rating IS NOT NULL AND created_at >= NOW() - INTERVAL 365 DAY
+    GROUP BY product_id
+) r ON p.id = r.product_id
+WHERE r.product_id IS NULL;
+
+SELECT ap.id AS IdAlerta,
+pro.name AS Producto,
+ap.alerta_fecha AS FechaAletta, ap.mensaje AS MensajeAlerta
+FROM alertas_productos ap
+JOIN products pro ON ap.product_id = pro.id;
 ```
-20.6 Actualizar precios con índice externo
-```sql
 
+20.6 Actualizar precios con índice externo.
+🧠 Explicación: Se podría tener una tabla *inflacion_indice* y aplicar ese valor multiplicador a los precios de productos activos.
+
+```sql
+DELIMITER $$
+
+CREATE EVENT IF NOT EXISTS actualizar_precios_inflacion
+ON SCHEDULE EVERY 1 MONTH
+DO
+BEGIN
+    DECLARE ultimo_indice DECIMAL(5,4);
+
+    SELECT indice INTO ultimo_indice
+    FROM inflacion_indice
+    ORDER BY fecha_aplicacion DESC
+    LIMIT 1;
+
+    UPDATE companyproducts cp
+    JOIN products p ON cp.product_id = p.id
+    SET cp.price = ROUND(cp.price * ultimo_indice, 2)
+    WHERE cp.available_product = 1;
+END $$
+
+DELIMITER ;
+
+-- Verificar el evento:
+SHOW CREATE EVENT actualizar_precios_inflacion;
+
+-- Prueba inmediata:
+SELECT cp.company_id, cp.product_id, cp.price
+FROM companyproducts cp
+WHERE cp.available_product = 1;
+
+SET @indice := (
+    SELECT indice
+    FROM inflacion_indice
+    ORDER BY fecha_aplicacion DESC
+    LIMIT 1
+);
+
+UPDATE companyproducts cp
+JOIN products p ON cp.product_id = p.id
+SET cp.price = ROUND(cp.price * @indice, 2)
+WHERE cp.available_product = 1;
+
+SELECT cp.company_id AS IdEmpresa, cp.product_id AS IdProducto, cp.price AS PrecioActualizado,
+p.name AS Producto
+FROM companyproducts cp
+JOIN products p ON cp.product_id = p.id
+WHERE cp.available_product = 1;
 ```
 
 ### 7. Historias de Usuario con JOINs:
 
-01.7 Ver productos con la empresa que los vende
+01.7 Ver productos con la empresa que los vende.
+
 ```sql
 SELECT em.name AS Empresa,
 pro.name AS Producto,
@@ -2722,7 +3470,9 @@ FROM companyproducts cp
 INNER JOIN companies em ON cp.company_id = em.id
 INNER JOIN products pro ON cp.product_id = pro.id;
 ```
-02.7 Mostrar productos favoritos con su empresa y categoría
+
+02.7 Mostrar productos favoritos con su empresa y categoría.
+
 ```sql
 SELECT pro.name AS Producto,
 cat.description AS Categoría,
@@ -2734,7 +3484,9 @@ JOIN categories cat ON pro.category_id = cat.id
 JOIN companyproducts cp ON cp.product_id = pro.id
 JOIN companies em ON cp.company_id = em.id;
 ```
-03.7 Ver empresas aunque no tengan productos
+
+03.7 Ver empresas aunque no tengan productos.
+
 ```sql
 SELECT em.name AS Empresa
 FROM companies em
@@ -2743,14 +3495,18 @@ GROUP BY em.name
 HAVING COUNT(cp.product_id) = 0;
 -- (Empty Set) Todas las empresas tienen productos.
 ```
-04.7 Ver productos que fueron calificados (o no)
+
+04.7 Ver productos que fueron calificados (o no).
+
 ```sql
 SELECT pro.name AS Producto,
 r.rating AS Calificación
 FROM quality_products r
 RIGHT JOIN products pro ON pro.id = r.product_id;
 ```
-05.7 Ver productos con promedio de calificación y empresa
+
+05.7 Ver productos con promedio de calificación y empresa.
+
 ```sql
 SELECT em.name AS Empresa,
 pro.name AS Producto,
@@ -2761,14 +3517,18 @@ JOIN companies em ON cp.company_id = em.id
 JOIN quality_products qp ON qp.product_id = pro.id AND qp.company_id = em.id
 GROUP BY em.name, pro.name;
 ```
-06.7 Ver clientes y sus calificaciones (si las tienen)
+
+06.7 Ver clientes y sus calificaciones (si las tienen).
+
 ```sql
 SELECT cl.name AS Cliente,
 r.rating AS calificacion
 FROM customers cl
 LEFT JOIN rates r ON cl.id = r.customer_id;
 ```
-07.7 Ver favoritos con la última calificación del cliente
+
+07.7 Ver favoritos con la última calificación del cliente.
+
 ```sql
 SELECT c.name AS Cliente,
 pro.name AS Producto,
@@ -2785,7 +3545,9 @@ JOIN categories cat ON pro.category_id = cat.id
 LEFT JOIN rates r ON c.id = r.customer_id AND comp.id = r.company_id
 GROUP BY fav.id, pro.id, comp.id, r.rating;
 ```
-08.7 Ver beneficios incluidos en cada plan de membresía
+
+08.7 Ver beneficios incluidos en cada plan de membresía.
+
 ```sql
 SELECT m.name AS Membresía, m.description AS Descripción,
 b.description AS Beneficio, b.detail AS Detalles
@@ -2793,7 +3555,9 @@ FROM membershipbenefits msb
 JOIN memberships m ON m.id = msb.membership_id
 JOIN benefits b ON b.id = msb.benefit_id;
 ```
-09.7 Ver clientes con membresía activa y sus beneficios
+
+09.7 Ver clientes con membresía activa y sus beneficios.
+
 ```sql
 SELECT cu.id AS IdCliente, cu.name AS Cliente,
 m.name AS Membresia,
@@ -2804,7 +3568,9 @@ JOIN memberships m ON mb.membership_id = m.id
 JOIN benefits b ON mb.benefit_id = b.id
 WHERE cu.membership_active = TRUE;
 ```
-10.7 Ver ciudades con cantidad de empresas
+
+10.7 Ver ciudades con cantidad de empresas.
+
 ```sql
 SELECT cm.name AS Ciudad,
 COUNT(c.id) AS TotalEmpresas
@@ -2812,14 +3578,18 @@ FROM citiesormunicipalities cm
 JOIN companies c ON cm.code = c.city_id
 GROUP BY(cm.code);
 ```
-11.7 Ver encuestas con calificaciones
+
+11.7 Ver encuestas con calificaciones.
+
 ```sql
 SELECT po.name AS Encuesta, po.description AS Descripción,
 r.rating AS Calificacion
 FROM polls po
 JOIN rates r ON po.id = r.poll_id;
 ```
-12.7 Ver productos evaluados con datos del cliente
+
+12.7 Ver productos evaluados con datos del cliente.
+
 ```sql
 SELECT pro.name AS Producto,
 c.name AS Cliente,
@@ -2828,7 +3598,9 @@ FROM quality_products qp
 JOIN products pro ON qp.product_id = pro.id
 JOIN customers c ON qp.customer_id = c.id;
 ```
-13.7 Ver productos con audiencia de la empresa
+
+13.7 Ver productos con audiencia de la empresa.
+
 ```sql
 SELECT pro.name AS Producto,
 em.name AS Empresa,
@@ -2838,7 +3610,9 @@ JOIN companyproducts cp ON pro.id = cp.product_id
 JOIN companies em ON cp.company_id = em.id
 JOIN audiences a ON em.audience_id = a.id;
 ```
-14.7 Ver clientes con sus productos favoritos
+
+14.7 Ver clientes con sus productos favoritos.
+
 ```sql
 SELECT c.name AS Cliente,
 pro.name AS Producto
@@ -2847,7 +3621,9 @@ JOIN favorites f ON f.customer_id = c.id
 JOIN details_favorites df ON df.favorite_id = f.id
 JOIN products pro ON df.product_id = pro.id;
 ```
-15.7 Ver planes, periodos, precios y beneficios
+
+15.7 Ver planes, periodos, precios y beneficios.
+
 ```sql
 SELECT m.name AS Membresía,
 pe.name AS Período,
@@ -2857,7 +3633,9 @@ JOIN memberships m ON m.id = msb.membership_id
 JOIN benefits b ON b.id = msb.benefit_id
 JOIN periods pe ON pe.id = msb.period_id;
 ```
-16.7 Ver combinaciones empresa-producto-cliente calificados
+
+16.7 Ver combinaciones empresa-producto-cliente calificados.
+
 ```sql
 SELECT c.name AS Cliente,
 pro.name AS Producto,
@@ -2868,7 +3646,9 @@ JOIN products pro ON qp.product_id = pro.id
 JOIN companies em ON qp.company_id = em.id
 JOIN customers c ON qp.customer_id = c.id;
 ```
-17.7 Comparar favoritos con productos calificados
+
+17.7 Comparar favoritos con productos calificados.
+
 ```sql
 SELECT f.customer_id AS IdCliente,
 pro.name AS Producto,
@@ -2881,14 +3661,18 @@ JOIN quality_products qp ON qp.product_id = pro.id AND qp.customer_id = f.custom
 WHERE f.customer_id = 1
 ORDER BY Fecha DESC;
 ```
-18.7 Ver productos ordenados por categoría
+
+18.7 Ver productos ordenados por categoría.
+
 ```sql
 SELECT pro.name AS Producto,
 cat.description AS Categoría
 FROM products pro
 JOIN categories cat ON cat.id = pro.category_id;
 ```
-19.7 Ver beneficios por audiencia, incluso vacíos
+
+19.7 Ver beneficios por audiencia, incluso vacíos.
+
 ```sql
 SELECT a.description AS Audiencia,
 b.description AS DescripciónBeneficio, b.detail AS Detalle
@@ -2896,7 +3680,9 @@ FROM audiences a
 LEFT JOIN audiencebenefits ab ON a.id = ab.audience_id
 LEFT JOIN benefits b ON ab.benefit_id = b.id;
 ```
-20.7 Ver datos cruzados entre calificaciones, encuestas, productos y clientes
+
+20.7 Ver datos cruzados entre calificaciones, encuestas, productos y clientes.
+
 ```sql
 SELECT c.name AS Cliente,
 pro.name AS Producto,
@@ -2911,83 +3697,629 @@ JOIN customers c ON qp.customer_id = c.id;
 ```
 
 ### 8. Historias de Usuario con Funciones Definidas por el Usuario (UDF):
+
 01.8 Como analista, quiero una función que calcule el promedio ponderado de calidad de un producto basado en sus calificaciones y fecha de evaluación.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION promedio_ponderado_producto(prod_id INT)
+RETURNS DECIMAL(5,2)
+DETERMINISTIC
+BEGIN
+    DECLARE weighted_sum DECIMAL(10,4) DEFAULT 0;
+    DECLARE total_weight DECIMAL(10,4) DEFAULT 0;
+
+    SELECT 
+        SUM(r.rating / (1 + DATEDIFF(NOW(), r.created_at))),
+        SUM(1 / (1 + DATEDIFF(NOW(), r.created_at)))
+    INTO weighted_sum, total_weight
+    FROM rates r
+    WHERE r.product_id = prod_id;
+
+    IF total_weight = 0 THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN ROUND(weighted_sum / total_weight, 2);
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT promedio_ponderado_producto(1) AS PromedioPonderado;
 ```
+
 02.8 Como auditor, deseo una función que determine si un producto ha sido calificado recientemente (últimos 30 días).
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION producto_calificado_recientemente(prod_id INT)
+RETURNS BOOLEAN
+DETERMINISTIC
+BEGIN
+    DECLARE calificacion_reciente INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO calificacion_reciente
+    FROM rates
+    WHERE product_id = prod_id
+      AND created_at >= CURDATE() - INTERVAL 30 DAY;
+
+    RETURN calificacion_reciente > 0;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT producto_calificado_recientemente(1) AS CalificadoRecientemente;
 ```
+
 03.8 Como desarrollador, quiero una función que reciba un *product_id* y devuelva el nombre completo de la empresa que lo vende.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION obtener_empresa_producto(prod_id INT)
+RETURNS VARCHAR(80)
+DETERMINISTIC
+BEGIN
+    DECLARE nombre_empresa VARCHAR(80);
+
+    SELECT c.name
+    INTO nombre_empresa
+    FROM companies c
+    JOIN companyproducts cp ON c.id = cp.company_id
+    WHERE cp.product_id = prod_id
+    ORDER BY c.name
+    LIMIT 1;
+
+    RETURN nombre_empresa;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT obtener_empresa_producto(4) AS EmpresaConProducto;
 ```
+
 04.8 Como operador, deseo una función que, dado un *customer_id*, me indique si el cliente tiene una membresía activa.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION tiene_membresia_activa(cliente_id INT)
+RETURNS BOOLEAN
+DETERMINISTIC
+BEGIN
+    DECLARE resultado BOOLEAN DEFAULT FALSE;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM customer_memberships cm
+        JOIN membershipperiods mp ON cm.membership_id = mp.membership_id
+        WHERE cm.customer_id = cliente_id
+          AND mp.status = 'ACTIVA'
+          AND mp.fecha_fin >= CURDATE()
+    ) INTO resultado;
+
+    RETURN resultado;
+END $$
+
+DELIMITER ;
+
+
+-- Prueba:
+UPDATE membershipperiods
+SET status = 'ACTIVA'
+WHERE fecha_fin >= CURDATE();
+
+SELECT tiene_membresia_activa(1) AS 'Cliente #1';
+SELECT tiene_membresia_activa(2) AS 'Cliente #2';
+SELECT tiene_membresia_activa(3) AS 'Cliente #3';
 ```
+
 05.8 Como administrador, quiero una función que valide si una ciudad tiene más de X empresas registradas, recibiendo la ciudad y el número como parámetros.
-```sql
 
+```sql
+DELIMITER $$
+
+DROP FUNCTION IF EXISTS tiene_mas_empresas_que$$
+
+CREATE FUNCTION tiene_mas_empresas_que(ciudad_id VARCHAR(10), cantidad_minima INT)
+RETURNS BOOLEAN
+DETERMINISTIC
+BEGIN
+    DECLARE total_empresas INT;
+
+    SELECT COUNT(*) INTO total_empresas
+    FROM companies
+    WHERE city_id = ciudad_id;
+
+    RETURN total_empresas > cantidad_minima;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT tiene_mas_empresas_que('11001', 0) AS Resultado;
+SELECT tiene_mas_empresas_que('11001', 1) AS Resultado; 
 ```
+
 06.8 Como gerente, deseo una función que, dado un rate_id, me devuelva una descripción textual de la calificación (por ejemplo, “Muy bueno”, “Regular”).
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION descripcion_calificacion(
+    p_customer_id INT,
+    p_company_id VARCHAR(20),
+    p_poll_id INT
+)
+RETURNS VARCHAR(20)
+DETERMINISTIC
+BEGIN
+    DECLARE calif DOUBLE;
+    DECLARE descripcion VARCHAR(20);
+
+    SELECT rating INTO calif
+    FROM rates
+    WHERE customer_id = p_customer_id
+      AND company_id = p_company_id
+      AND poll_id = p_poll_id
+    LIMIT 1;
+
+    IF calif IS NULL THEN
+        RETURN 'No hay calificación';
+    ELSEIF calif >= 4.5 THEN
+        SET descripcion = 'Muy bueno';
+    ELSEIF calif >= 3.5 THEN
+        SET descripcion = 'Bueno';
+    ELSEIF calif >= 2.5 THEN
+        SET descripcion = 'Regular';
+    ELSE
+        SET descripcion = 'Malo';
+    END IF;
+
+    RETURN descripcion;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT descripcion_calificacion(1, 'COMP1', 1) AS Descripción;
 ```
+
 07.8 Como técnico, quiero una función que devuelva el estado de un producto en función de su evaluación (ej. “Aceptable”, “Crítico”).
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION estado_producto(prod_id INT)
+RETURNS VARCHAR(20)
+DETERMINISTIC
+BEGIN
+    DECLARE promedio DECIMAL(5,2);
+
+    SET promedio = promedio_ponderado_producto(prod_id);
+
+    IF promedio IS NULL THEN
+        RETURN 'Sin evaluaciones';
+    ELSEIF promedio >= 4.5 THEN
+        RETURN 'Excelente';
+    ELSEIF promedio >= 3.5 THEN
+        RETURN 'Aceptable';
+    ELSEIF promedio >= 2.5 THEN
+        RETURN 'Regular';
+    ELSE
+        RETURN 'Crítico';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT estado_producto(1) AS 'Estado del producto';
 ```
+
 08.8 Como cliente, deseo una función que indique si un producto está entre mis favoritos, recibiendo el *product_id* y mi *customer_id*.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION es_favorito(prod_id INT, cust_id INT)
+RETURNS BOOLEAN
+DETERMINISTIC
+BEGIN
+    DECLARE favorito BOOLEAN DEFAULT FALSE;
+
+    SELECT TRUE INTO favorito
+    FROM details_favorites df
+    JOIN favorites f ON df.favorite_id = f.id
+    WHERE df.product_id = prod_id AND f.customer_id = cust_id
+    LIMIT 1;
+
+    RETURN IF(favorito IS NULL, FALSE, favorito);
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT es_favorito(4, TRUE) AS '¿Está en favoritos?';
+SELECT es_favorito(3, FALSE) AS '¿Está en favoritos?';
 ```
+
 09.8 Como gestor de beneficios, quiero una función que determine si un beneficio está asignado a una audiencia específica, retornando verdadero o falso.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION beneficio_asignado_a_audiencia(
+    p_benefit_id INT,
+    p_audience_id INT
+) RETURNS TINYINT
+DETERMINISTIC
+BEGIN
+    DECLARE resultado TINYINT DEFAULT 0;
+
+    IF EXISTS (
+        SELECT 1
+        FROM audiencebenefits
+        WHERE benefit_id = p_benefit_id
+          AND audience_id = p_audience_id
+    ) THEN
+        SET resultado = 1;
+    END IF;
+
+    RETURN resultado;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT beneficio_asignado_a_audiencia(1, 1) AS 'Beneficio Asignado';
+SELECT beneficio_asignado_a_audiencia(2, 2) AS 'Beneficio Asignado';
+SELECT beneficio_asignado_a_audiencia(1, 2) AS 'Beneficio Asignado'; 
 ```
+
 10.8 Como auditor, deseo una función que reciba una fecha y determine si se encuentra dentro de un rango de membresía activa.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION fecha_en_membresia_activa(fecha DATE)
+RETURNS BOOLEAN
+NOT DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE resultado BOOLEAN DEFAULT FALSE;
+
+    SELECT EXISTS(
+        SELECT 1
+        FROM membershipperiods
+        WHERE status = 'ACTIVA'
+          AND fecha_fin >= fecha
+    ) INTO resultado;
+
+    RETURN resultado;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT fecha_en_membresia_activa('2025-07-20') AS 'Resultado dentro de fecha'; 
+SELECT fecha_en_membresia_activa('2025-08-01') AS 'Resultado fuera de fecha'; 
+SELECT fecha_en_membresia_activa(CURDATE()) AS 'Membresía Activa';
 ```
+
 11.8 Como desarrollador, quiero una función que calcule el porcentaje de calificaciones positivas de un producto respecto al total.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION porcentaje_calificaciones_positivas(producto_id INT) RETURNS DECIMAL(5,2)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total INT DEFAULT 0;
+    DECLARE positivas INT DEFAULT 0;
+    DECLARE porcentaje DECIMAL(5,2) DEFAULT 0.00;
+
+    -- Total de calificaciones del producto
+    SELECT COUNT(*) INTO total
+    FROM rates
+    WHERE product_id = producto_id;
+
+    -- Total de calificaciones positivas (rating >= 4.0)
+    SELECT COUNT(*) INTO positivas
+    FROM rates
+    WHERE product_id = producto_id AND rating >= 4.0;
+
+    -- Si hay calificaciones, calcular el porcentaje
+    IF total > 0 THEN
+        SET porcentaje = (positivas / total) * 100;
+    END IF;
+
+    RETURN porcentaje;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT porcentaje_calificaciones_positivas(1) AS '% Calificaciones positivas';
 ```
+
 12.8 Como supervisor, deseo una función que calcule la edad de una calificación, en días, desde la fecha actual.
-```sql
 
-```
-13.8 Como operador, quiero una función que, dado un company_id, devuelva la cantidad de productos únicos asociados a esa empresa.
 ```sql
+DELIMITER $$
 
+CREATE FUNCTION edad_calificacion_en_dias(
+    p_customer_id INT,
+    p_company_id VARCHAR(20),
+    p_poll_id INT
+) RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE edad_dias INT;
+
+    SELECT DATEDIFF(CURDATE(), daterating)
+    INTO edad_dias
+    FROM rates
+    WHERE customer_id = p_customer_id
+      AND company_id = p_company_id
+      AND poll_id = p_poll_id
+    LIMIT 1;
+
+    RETURN edad_dias;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT edad_calificacion_en_dias(3, 'COMP1', 1) AS 'Edad en días';
 ```
+
+13.8 Como operador, quiero una función que, dado un *company_id*, devuelva la cantidad de productos únicos asociados a esa empresa.
+
+```sql
+DELIMITER $$
+
+CREATE FUNCTION total_productos_por_empresa(company VARCHAR(20)) 
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total INT;
+
+    SELECT COUNT(DISTINCT product_id)
+    INTO total
+    FROM companyproducts
+    WHERE company_id = company;
+
+    RETURN total;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT total_productos_por_empresa('COMP1') AS 'Total productos por empresa';
+```
+
 14.8 Como gerente, deseo una función que retorne el nivel de actividad de un cliente (frecuente, esporádico, inactivo), según su número de calificaciones.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION nivel_actividad_cliente(cliente_id INT)
+RETURNS VARCHAR(20)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total_calificaciones INT;
+    DECLARE nivel VARCHAR(20);
+
+    SELECT COUNT(*) INTO total_calificaciones
+    FROM rates
+    WHERE customer_id = cliente_id;
+
+    IF total_calificaciones >= 5 THEN
+        SET nivel = 'Frecuente';
+    ELSEIF total_calificaciones >= 2 THEN
+        SET nivel = 'Esporádico';
+    ELSE
+        SET nivel = 'Inactivo';
+    END IF;
+
+    RETURN nivel;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT nivel_actividad_cliente(1) AS NivelDeActividad;
 ```
+
 15.8 Como administrador, quiero una función que calcule el precio promedio ponderado de un producto, tomando en cuenta su uso en favoritos.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION precio_promedio_ponderado(producto_id INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE promedio DECIMAL(10,2);
+
+    SELECT
+        CASE
+            WHEN SUM(IFNULL(df_total.total_favoritos, 0)) = 0 THEN
+                ROUND(AVG(cp.price), 2)
+            ELSE
+                ROUND(SUM(cp.price * IFNULL(df_total.total_favoritos, 0)) / SUM(IFNULL(df_total.total_favoritos, 0)), 2)
+        END
+    INTO promedio
+    FROM companyproducts cp
+    LEFT JOIN (
+        SELECT product_id, COUNT(*) AS total_favoritos
+        FROM details_favorites
+        GROUP BY product_id
+    ) AS df_total ON cp.product_id = df_total.product_id
+    WHERE cp.product_id = producto_id;
+
+    RETURN promedio;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT precio_promedio_ponderado(4) AS PrecioPromedio;
 ```
+
 16.8 Como técnico, deseo una función que me indique si un *benefit_id* está asignado a más de una audiencia o membresía (valor booleano).
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION beneficio_asignado_multiple(benefitId INT) RETURNS BOOLEAN
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total INT;
+
+    SELECT 
+        (SELECT COUNT(DISTINCT audience_id) FROM audiencebenefits WHERE benefit_id = benefitId) +
+        (SELECT COUNT(DISTINCT membership_id) FROM membershipbenefits WHERE benefit_id = benefitId)
+    INTO total;
+
+    RETURN total > 1;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT beneficio_asignado_multiple(1) AS BeneficioMúltiple;
 ```
+
 17.8 Como cliente, quiero una función que, dada mi ciudad, retorne un índice de variedad basado en número de empresas y productos.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION indice_variedad_ciudad(city VARCHAR(10)) RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total_empresas INT;
+    DECLARE total_productos INT;
+    DECLARE resultado INT;
+
+    SELECT COUNT(*) INTO total_empresas
+    FROM companies
+    WHERE city_id = city;
+
+    SELECT COUNT(DISTINCT cp.product_id) INTO total_productos
+    FROM companyproducts cp
+    JOIN companies c ON cp.company_id = c.id
+    WHERE c.city_id = city;
+
+    SET resultado = total_empresas * total_productos;
+
+    RETURN resultado;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT indice_variedad_ciudad('11001') AS Índice;
 ```
+
 18.8 Como gestor de calidad, deseo una función que evalúe si un producto debe ser desactivado por tener baja calificación histórica.
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION debe_desactivarse_producto(pid INT) RETURNS BOOLEAN
+READS SQL DATA
+BEGIN
+    DECLARE promedio DOUBLE;
+
+    SELECT AVG(rating)
+    INTO promedio
+    FROM rates
+    WHERE product_id = pid;
+
+    RETURN IFNULL(promedio < 3.0, FALSE);
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT debe_desactivarse_producto(1) AS Desactivar; 
+SELECT debe_desactivarse_producto(4) AS Desactivar;
 ```
+
 19.8 Como desarrollador, quiero una función que calcule el índice de popularidad de un producto (combinando favoritos y ratings).
-```sql
 
+```sql
+DELIMITER $$
+
+CREATE FUNCTION indice_popularidad_producto(pid INT) RETURNS DOUBLE
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total_favoritos INT DEFAULT 0;
+    DECLARE promedio_rating DOUBLE DEFAULT 0.0;
+    DECLARE resultado DOUBLE;
+
+    -- Contar cuántas veces aparece el producto como favorito
+    SELECT COUNT(*) INTO total_favoritos
+    FROM details_favorites
+    WHERE product_id = pid;
+
+    -- Calcular promedio de calificación del producto
+    SELECT AVG(rating) INTO promedio_rating
+    FROM rates
+    WHERE product_id = pid;
+
+    -- Si no hay calificaciones, asumimos 0
+    SET resultado = (total_favoritos * 1) + (IFNULL(promedio_rating, 0) * 2);
+
+    RETURN resultado;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT indice_popularidad_producto(1) AS Popularidad; 
+SELECT indice_popularidad_producto(4) AS Popularidad;
 ```
-20.8 Como auditor, deseo una función que genere un código único basado en el nombre del producto y su fecha de creación.
-```sql
 
+20.8 Como auditor, deseo una función que genere un código único basado en el nombre del producto y su fecha de creación.
+
+```sql
+DELIMITER $$
+
+CREATE FUNCTION generar_codigo_unico(nombre_producto VARCHAR(255), fecha_creacion DATETIME)
+RETURNS VARCHAR(50)
+DETERMINISTIC
+BEGIN
+    DECLARE codigo VARCHAR(50);
+
+    SET codigo = CONCAT(
+        UPPER(LEFT(REPLACE(nombre_producto, ' ', ''), 3)),
+        DATE_FORMAT(fecha_creacion, '%Y%m%d%H%i%s')
+    );
+
+    RETURN codigo;
+END$$
+
+DELIMITER ;
+
+-- Prueba:
+SELECT generar_codigo_unico('Aceite Vegetal', '2025-07-16 15:42:00') AS CódigoÚnico;
+SELECT generar_codigo_unico('Arroz Integral', '2025-07-16 10:00:00') AS CódigoÚnico;
+SELECT generar_codigo_unico('Panela Orgánica', '2025-07-14 08:15:00') AS CódigoÚnico;
 ```
