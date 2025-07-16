@@ -12,6 +12,11 @@ INSERT INTO polls (name, description, isactive, categorypoll_id) VALUES
 ('Calidad Supermercado', 'Evaluación productos de supermercado', 1, 2),
 ('App Móvil', 'Experiencia usando nuestra aplicación', 0, 3);
 
+INSERT INTO poll_questions (poll_id, question) VALUES
+(3, '¿Cómo califica la calidad del producto?'),
+(2, '¿La atención al cliente fue adecuada?'),
+(2, '¿Volvería a comprar con nosotros?');
+
 INSERT INTO countries (isocode, name, alfaisotwo, alfaisothree) VALUES
 ('4', 'Afganistán', 'AF', 'AFG'),
 ('8', 'Albania', 'AL', 'ALB'),
@@ -1529,10 +1534,10 @@ INSERT INTO periods (name) VALUES
 ('Anual'),
 ('Trimestral');
 
-INSERT INTO membershipperiods (membership_id, period_id) VALUES
-(1, 2),
-(2, 1),
-(1, 3);
+INSERT INTO membershipperiods (membership_id, period_id, fecha_fin, pago_confirmado, status) VALUES
+(1, 2, CURDATE() - INTERVAL 5 DAY, TRUE, 'INACTIVA'),
+(2, 1, CURDATE() + INTERVAL 10 DAY, TRUE, 'INACTIVA'),
+(1, 3, CURDATE() - INTERVAL 10 DAY, FALSE, 'INACTIVA');
 
 INSERT INTO benefits (description, detail) VALUES
 ('Descuento 20%', 'En productos seleccionados'),
@@ -1605,11 +1610,11 @@ INSERT INTO favorites (customer_id, company_id) VALUES
 (2, 'COMP3'),
 (3, 'COMP2');
 
-INSERT INTO details_favorites (favorite_id, product_id) VALUES
-(1, 1),
-(1, 4),
-(2, 3),
-(3, 2);
+INSERT INTO details_favorites (favorite_id, product_id, created_at) VALUES
+(1, 1, CURDATE() - INTERVAL 14 MONTH),
+(1, 4, CURDATE() - INTERVAL 2 MONTH),  
+(2, 3, CURDATE() - INTERVAL 16 MONTH),
+(3, 2, CURDATE() - INTERVAL 1 MONTH);  
 
 INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating) VALUES
 (1, 'COMP1', 2, NOW(), 4.0),
