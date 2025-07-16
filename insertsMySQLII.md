@@ -1580,6 +1580,11 @@ INSERT INTO products (name, detail, price, category_id, image, unitofmeasure_id)
 ('Aceite Vegetal', 'Aceite vegetal 1 litro', 8000, 2, 'aceite.jpg', 3),
 ('Sal Marina', 'Sal natural sin refinar', 3000, 2, 'sal.jpg', 2);
 
+INSERT INTO poll_product (poll_id, product_id) VALUES
+(1, 3),
+(2, 1),
+(3, 2);  
+
 INSERT INTO companyproducts (company_id, product_id, price, unitmeasure_id, available_product) VALUES
 ('COMP1', 1, 14000, 2, 1),
 ('COMP1', 4, 4800, 1, 1),
