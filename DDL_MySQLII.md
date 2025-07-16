@@ -171,6 +171,13 @@ CREATE TABLE IF NOT EXISTS products (
     CONSTRAINT FK_unitmeasure_idprod FOREIGN KEY (unitofmeasure_id) REFERENCES unitofmeasure(id)
 ) ENGINE = INNODB;
 
+CREATE TABLE poll_product (
+    poll_id INT PRIMARY KEY,
+    FOREIGN KEY (poll_id) REFERENCES polls(id),
+    product_id INT NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+) ENGINE = INNODB;
+
 CREATE TABLE IF NOT EXISTS companyproducts (
     company_id VARCHAR(20) NOT NULL,
     CONSTRAINT FK_company_idcompany FOREIGN KEY (company_id) REFERENCES companies(id),
@@ -258,8 +265,37 @@ CREATE TABLE IF NOT EXISTS errores_log (
     tipo_error VARCHAR(100) NOT NULL,
     descripcion TEXT NOT NULL,
     fecha_error TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    entidad_origen VARCHAR(50),
-    id_origen INT
+    entidad_origen VARCHAR(50) NOT NULL,
+    id_origen VARCHAR(50) NOT NULL
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS log_acciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tipo_accion VARCHAR(100),
+    descripcion TEXT NOT NULL,
+    customer_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    fecha_accion DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    mensaje TEXT NOT NULL,
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS bitacora (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    mensaje TEXT NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS log_cambios_encuestas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    poll_id INT NOT NULL,
+    nuevo_estado VARCHAR(20) NOT NULL,
+    fecha_cambio DATETIME DEFAULT CURRENT_TIMESTAMP,
+    usuario VARCHAR(50) NOT NULL
 ) ENGINE = INNODB;
 
 SHOW TABLES;
