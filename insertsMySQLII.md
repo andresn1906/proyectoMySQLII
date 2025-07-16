@@ -1625,4 +1625,34 @@ INSERT INTO rates (customer_id, company_id, poll_id, daterating, rating) VALUES
 (1, 'COMP1', 2, NOW(), 4.0),
 (2, 'COMP3', 1, NOW(), 4.5),
 (3, 'COMP2', 1, NOW(), 4.7);
+
+INSERT INTO products_backup SELECT * FROM products;
+
+INSERT INTO poll_responses (poll_id, customer_id, question_id, answer) VALUES
+(2, 1, 2, 'Sí, la atención fue muy buena'),
+(2, 1, 3, 'Definitivamente volvería a comprar'),
+(2, 2, 2, 'Atención adecuada pero puede mejorar'),
+(2, 2, 3, 'No estoy segura, depende del producto'),
+(3, 3, 1, 'La calidad del producto es excelente');
+
+INSERT INTO estadisticas (fecha, total_productos_activos, total_clientes, total_empresas, total_productos_disponibles) VALUES
+('2025-07-09', 20, 50, 10, 18),
+('2025-07-10', 22, 52, 11, 19),
+('2025-07-11', 23, 53, 12, 20),
+('2025-07-12', 25, 55, 12, 22),
+('2025-07-13', 26, 56, 13, 23);
+
+INSERT INTO inflacion_indice (indice, fecha_aplicacion, comentario) VALUES
+(1.0100, '2025-01-01', 'Inflación enero 2025: 1.00%'),
+(1.0085, '2025-02-01', 'Inflación febrero 2025: 0.85%'),
+(1.0112, '2025-03-01', 'Inflación marzo 2025: 1.12%'),
+(1.0070, '2025-04-01', 'Inflación abril 2025: 0.70%'),
+(1.0093, '2025-05-01', 'Inflación mayo 2025: 0.93%'),
+(1.0135, '2025-06-01', 'Inflación junio 2025: 1.35%'),
+(1.0275, '2025-07-01', 'Inflación julio 2025: 2.75% (dato provisional)');
+
+INSERT INTO customer_memberships (customer_id, membership_id) VALUES 
+(1, 1),
+(2, 2),  
+(3, 1);  
 ```
